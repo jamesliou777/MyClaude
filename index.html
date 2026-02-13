@@ -259,6 +259,30 @@
             .card { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
         }
 
+        .unit-system-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .unit-system-selector label {
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+        .unit-system-selector select {
+            padding: 0.4rem 0.6rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+        }
+        .unit-system-selector select option {
+            color: #1e293b;
+            background: white;
+        }
+
         footer {
             text-align: center;
             padding: 2rem;
@@ -270,8 +294,24 @@
 <body>
 
 <header>
-    <h1>&#9881; 工程試算工具</h1>
-    <p>Engineering Calculator - 結構 / 材料 / 電機 / 單位換算</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+        <div>
+            <h1>&#9881; 工程試算工具</h1>
+            <p>Engineering Calculator - 結構 / 材料 / 電機 / 單位換算</p>
+        </div>
+        <div class="unit-system-selector">
+            <label for="unit-system">單位制</label>
+            <select id="unit-system" onchange="switchUnitSystem(this.value)">
+                <option value="" selected>自訂</option>
+                <option value="kN-m">kN - m</option>
+                <option value="kgf-cm">Kgf - cm</option>
+                <option value="tf-m">tf - m</option>
+                <option value="N-mm">N - mm</option>
+                <option value="tf-cm">tf - cm</option>
+                <option value="kgf-m">Kgf - m</option>
+            </select>
+        </div>
+    </div>
 </header>
 
 <div class="container">
@@ -664,47 +704,83 @@ function fmt(n, d = 4) {
     return parseFloat(n.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d });
 }
 
-// ===== 單位定義 =====
-// 每個欄位的 units 物件: { 顯示名稱: 轉換到基準單位的倍率 }
+// ===== SI 轉換因子 (所有單位 → SI 基準) =====
+const factorsToSI = {
+    // Force → N
+    'N': 1, 'kN': 1e3, 'kgf': 9.80665, 'tf': 9806.65, 'lbf': 4.44822,
+    // Length → m
+    'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254,
+    // Stress → Pa
+    'Pa': 1, 'kPa': 1e3, 'MPa': 1e6, 'GPa': 1e9,
+    'kN/m\u00B2': 1e3, 'kgf/cm\u00B2': 98066.5, 'tf/m\u00B2': 9806.65,
+    'N/mm\u00B2': 1e6, 'tf/cm\u00B2': 98066500, 'kgf/m\u00B2': 9.80665,
+    'ksi': 6894760, 'psi': 6894.76,
+    // Moment → N·m
+    'kN\u00B7m': 1e3, 'N\u00B7m': 1, 'kgf\u00B7cm': 0.0980665,
+    'tf\u00B7m': 9806.65, 'N\u00B7mm': 0.001, 'tf\u00B7cm': 98.0665,
+    'kgf\u00B7m': 9.80665, 'lbf\u00B7ft': 1.35582,
+    // Distributed load → N/m
+    'kN/m': 1e3, 'N/m': 1, 'kgf/cm': 980.665, 'tf/m': 9806.65,
+    'N/mm': 1e3, 'tf/cm': 980665, 'kgf/m': 9.80665, 'lbf/ft': 14.5939,
+    // Area → m²
+    'm\u00B2': 1, 'cm\u00B2': 1e-4, 'mm\u00B2': 1e-6, 'in\u00B2': 6.4516e-4,
+    // Inertia → m⁴
+    'm\u2074': 1, 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7,
+    // Unit weight → N/m³
+    'kN/m\u00B3': 1e3, 'kgf/cm\u00B3': 9806650, 'tf/m\u00B3': 9806.65,
+    'N/mm\u00B3': 1e9, 'tf/cm\u00B3': 9.80665e9, 'kgf/m\u00B3': 9.80665, 'pcf': 157.087,
+};
+
+// ===== 單位制定義 =====
+const unitSystemDefs = {
+    'kN-m':   { length:'m',  force:'kN',  stress:'kN/m\u00B2',   load:'kN/m',   area:'m\u00B2',  inertia:'m\u2074',  unitweight:'kN/m\u00B3',  moment:'kN\u00B7m' },
+    'kgf-cm': { length:'cm', force:'kgf', stress:'kgf/cm\u00B2', load:'kgf/cm', area:'cm\u00B2', inertia:'cm\u2074', unitweight:'kgf/cm\u00B3', moment:'kgf\u00B7cm' },
+    'tf-m':   { length:'m',  force:'tf',  stress:'tf/m\u00B2',   load:'tf/m',   area:'m\u00B2',  inertia:'m\u2074',  unitweight:'tf/m\u00B3',  moment:'tf\u00B7m' },
+    'N-mm':   { length:'mm', force:'N',   stress:'N/mm\u00B2',   load:'N/mm',   area:'mm\u00B2', inertia:'mm\u2074', unitweight:'N/mm\u00B3',  moment:'N\u00B7mm' },
+    'tf-cm':  { length:'cm', force:'tf',  stress:'tf/cm\u00B2',  load:'tf/cm',  area:'cm\u00B2', inertia:'cm\u2074', unitweight:'tf/cm\u00B3', moment:'tf\u00B7cm' },
+    'kgf-m':  { length:'m',  force:'kgf', stress:'kgf/m\u00B2',  load:'kgf/m',  area:'m\u00B2',  inertia:'m\u2074',  unitweight:'kgf/m\u00B3', moment:'kgf\u00B7m' },
+};
+
+// ===== 單位定義 (含維度類型) =====
 const fieldUnits = {
-    // -- 梁分析 (base: m, kN/m, kN/m², m⁴) --
-    'beam-L':  { dflt: 'm',    units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-    'beam-w':  { dflt: 'kN/m', units: { 'kN/m': 1, 'N/m': 0.001, 'kgf/m': 0.00980665, 'lbf/ft': 0.0145939 } },
-    'beam-E':  { dflt: 'GPa',  units: { 'GPa': 1e6, 'MPa': 1e3, 'ksi': 6.89476e3 } },
-    'beam-I':  { dflt: 'cm\u2074', units: { 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
+    // -- 梁分析 --
+    'beam-L':  { dflt: 'm',    dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'beam-w':  { dflt: 'kN/m', dim: 'load',   units: { 'kN/m': 1, 'kgf/cm': 0.980665, 'tf/m': 9.80665, 'N/mm': 1, 'tf/cm': 980.665, 'kgf/m': 0.00980665, 'N/m': 0.001, 'lbf/ft': 0.0145939 } },
+    'beam-E':  { dflt: 'GPa',  dim: 'stress', units: { 'GPa': 1e6, 'MPa': 1e3, 'kN/m\u00B2': 1, 'kgf/cm\u00B2': 98.0665, 'tf/m\u00B2': 9.80665, 'N/mm\u00B2': 1e3, 'tf/cm\u00B2': 98066.5, 'kgf/m\u00B2': 0.00980665, 'ksi': 6.89476e3 } },
+    'beam-I':  { dflt: 'cm\u2074', dim: 'inertia', units: { 'm\u2074': 1, 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
 
-    // -- 柱載重 (base: kN/m², m⁴, m², m, kN) --
-    'col-E':   { dflt: 'GPa',  units: { 'GPa': 1e6, 'MPa': 1e3, 'ksi': 6.89476e3 } },
-    'col-I':   { dflt: 'cm\u2074', units: { 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
-    'col-A':   { dflt: 'cm\u00B2', units: { 'cm\u00B2': 1e-4, 'mm\u00B2': 1e-6, 'in\u00B2': 6.4516e-4 } },
-    'col-L':   { dflt: 'm',    units: { 'm': 1, 'cm': 0.01, 'ft': 0.3048 } },
-    'col-P':   { dflt: 'kN',   units: { 'kN': 1, 'N': 0.001, 'kgf': 0.00980665, 'tf': 9.80665, 'lbf': 0.00444822 } },
+    // -- 柱載重 --
+    'col-E':   { dflt: 'GPa',  dim: 'stress', units: { 'GPa': 1e6, 'MPa': 1e3, 'kN/m\u00B2': 1, 'kgf/cm\u00B2': 98.0665, 'tf/m\u00B2': 9.80665, 'N/mm\u00B2': 1e3, 'tf/cm\u00B2': 98066.5, 'kgf/m\u00B2': 0.00980665, 'ksi': 6.89476e3 } },
+    'col-I':   { dflt: 'cm\u2074', dim: 'inertia', units: { 'm\u2074': 1, 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
+    'col-A':   { dflt: 'cm\u00B2', dim: 'area', units: { 'm\u00B2': 1, 'cm\u00B2': 1e-4, 'mm\u00B2': 1e-6, 'in\u00B2': 6.4516e-4 } },
+    'col-L':   { dflt: 'm',    dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
+    'col-P':   { dflt: 'kN',   dim: 'force', units: { 'kN': 1, 'N': 0.001, 'kgf': 0.00980665, 'tf': 9.80665, 'lbf': 0.00444822 } },
 
-    // -- 混凝土 (base: m) --
-    'conc-w':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-    'conc-d':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-    'conc-h':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-    'conc-l':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    // -- 混凝土 --
+    'conc-w':  { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'conc-d':  { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'conc-h':  { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'conc-l':  { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
 
-    // -- 鋼筋 (base: m) --
-    'rebar-len': { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'ft': 0.3048 } },
+    // -- 鋼筋 --
+    'rebar-len': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
 
-    // -- 電機 (base: kW, m, Ω/km) --
+    // -- 電機 --
     'elec-p':   { dflt: 'kW',   units: { 'kW': 1, 'W': 0.001, 'HP': 0.7457 } },
-    'elec-len': { dflt: 'm',    units: { 'm': 1, 'ft': 0.3048 } },
+    'elec-len': { dflt: 'm',    dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
     'elec-r':   { dflt: '\u03A9/km', units: { '\u03A9/km': 1, '\u03A9/m': 1000 } },
 
-    // -- 邊坡 (base: kPa, 度, kN/m³, m) --
-    'slope-c':     { dflt: 'kPa',    units: { 'kPa': 1, 'Pa': 0.001, 'psi': 6.89476 } },
+    // -- 邊坡穩定 --
+    'slope-c':     { dflt: 'kPa',    dim: 'stress', units: { 'kPa': 1, 'kN/m\u00B2': 1, 'kgf/cm\u00B2': 98.0665, 'tf/m\u00B2': 9.80665, 'N/mm\u00B2': 1e3, 'tf/cm\u00B2': 98066.5, 'kgf/m\u00B2': 0.00980665, 'Pa': 0.001, 'psi': 6.89476 } },
     'slope-phi':   { dflt: '\u00B0',  units: { '\u00B0': 1, 'rad': 57.29578 } },
-    'slope-gamma': { dflt: 'kN/m\u00B3', units: { 'kN/m\u00B3': 1, 'pcf': 0.157087 } },
+    'slope-gamma': { dflt: 'kN/m\u00B3', dim: 'unitweight', units: { 'kN/m\u00B3': 1, 'kgf/cm\u00B3': 9806.65, 'tf/m\u00B3': 9.80665, 'N/mm\u00B3': 1e6, 'tf/cm\u00B3': 9.80665e6, 'kgf/m\u00B3': 0.00980665, 'pcf': 0.157087 } },
     'slope-beta':  { dflt: '\u00B0',  units: { '\u00B0': 1, 'rad': 57.29578 } },
-    'slope-H':     { dflt: 'm',      units: { 'm': 1, 'cm': 0.01, 'ft': 0.3048 } },
+    'slope-H':     { dflt: 'm',      dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
 
-    // -- 管路 (base: mm, m/s, m) --
-    'pipe-d': { dflt: 'mm',  units: { 'mm': 1, 'cm': 10, 'in': 25.4 } },
+    // -- 管路水力 --
+    'pipe-d': { dflt: 'mm', dim: 'length', units: { 'mm': 1, 'cm': 10, 'm': 1000, 'in': 25.4 } },
     'pipe-v': { dflt: 'm/s', units: { 'm/s': 1, 'ft/s': 0.3048 } },
-    'pipe-l': { dflt: 'm',   units: { 'm': 1, 'ft': 0.3048 } },
+    'pipe-l': { dflt: 'm',  dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
 };
 
 // 讀取數值並轉換到基準單位
@@ -749,45 +825,98 @@ function initUnitSelectors() {
     }
 }
 
+// ===== 全域單位制切換 =====
+function switchUnitSystem(system) {
+    if (!system) return;
+    const sysDef = unitSystemDefs[system];
+    if (!sysDef) return;
+
+    for (const [fieldId, cfg] of Object.entries(fieldUnits)) {
+        if (!cfg.dim) continue;
+        const targetUnit = sysDef[cfg.dim];
+        if (!targetUnit) continue;
+        if (!cfg.units[targetUnit]) continue;
+
+        const input = document.getElementById(fieldId);
+        const unitSel = document.getElementById(fieldId + '-unit');
+        if (!input || !unitSel) continue;
+
+        const currentUnit = unitSel.value;
+        if (currentUnit === targetUnit) continue;
+
+        const oldFactor = cfg.units[currentUnit] || 1;
+        const newFactor = cfg.units[targetUnit] || 1;
+        const currentVal = parseFloat(input.value) || 0;
+        const newVal = currentVal * oldFactor / newFactor;
+
+        input.value = parseFloat(newVal.toPrecision(6));
+        unitSel.value = targetUnit;
+    }
+}
+
+// ===== 計算結果單位轉換 =====
+function resultInSystem(value, fromUnit, dim) {
+    const sys = document.getElementById('unit-system').value;
+    if (!sys) return { v: value, u: fromUnit };
+    const sysDef = unitSystemDefs[sys];
+    const toUnit = sysDef[dim];
+    if (!toUnit || toUnit === fromUnit) return { v: value, u: fromUnit };
+    const fromF = factorsToSI[fromUnit];
+    const toF = factorsToSI[toUnit];
+    if (!fromF || !toF) return { v: value, u: fromUnit };
+    return { v: value * fromF / toF, u: toUnit };
+}
+
 // ===== 梁分析 =====
 function calcBeam() {
     const L = valU('beam-L'), w = valU('beam-w');
-    const E = valU('beam-E'); // kN/m²
-    const I = valU('beam-I'); // m⁴
+    const E = valU('beam-E');
+    const I = valU('beam-I');
     const Mmax = w * L * L / 8;
     const Vmax = w * L / 2;
     const delta = (5 * w * Math.pow(L, 4)) / (384 * E * I) * 1000; // mm
     const Rmax = w * L / 2;
+
+    const rM = resultInSystem(Mmax, 'kN\u00B7m', 'moment');
+    const rV = resultInSystem(Vmax, 'kN', 'force');
+    const rR = resultInSystem(Rmax, 'kN', 'force');
+    const rD = resultInSystem(delta, 'mm', 'length');
+
     showResult('beam', [
-        ['最大彎矩 M_max', fmt(Mmax, 2) + ' kN\u00B7m'],
-        ['最大剪力 V_max', fmt(Vmax, 2) + ' kN'],
-        ['支承反力 R', fmt(Rmax, 2) + ' kN'],
-        ['最大撓度 \u03B4_max', fmt(delta, 3) + ' mm'],
-        ['撓度比 L/\u03B4', 'L/' + fmt(L * 1000 / delta, 0)],
+        ['\u6700\u5927\u5F4E\u77E9 M_max', fmt(rM.v, 2) + ' ' + rM.u],
+        ['\u6700\u5927\u526A\u529B V_max', fmt(rV.v, 2) + ' ' + rV.u],
+        ['\u652F\u627F\u53CD\u529B R', fmt(rR.v, 2) + ' ' + rR.u],
+        ['\u6700\u5927\u6493\u5EA6 \u03B4_max', fmt(rD.v, 3) + ' ' + rD.u],
+        ['\u6493\u5EA6\u6BD4 L/\u03B4', 'L/' + fmt(L * 1000 / delta, 0)],
     ]);
 }
 
 // ===== 柱載重 =====
 function calcColumn() {
-    const E = valU('col-E'); // kN/m²
-    const I = valU('col-I'); // m⁴
-    const A = valU('col-A'); // m²
-    const L = valU('col-L'); // m
+    const E = valU('col-E');
+    const I = valU('col-I');
+    const A = valU('col-A');
+    const L = valU('col-L');
     const K = parseFloat(sel('col-K'));
-    const P = valU('col-P'); // kN
+    const P = valU('col-P');
     const Pcr = Math.PI * Math.PI * E * I / Math.pow(K * L, 2);
     const sigma = P / A; // kN/m²
     const sigmaMPa = sigma / 1000;
     const r = Math.sqrt(I / A);
     const slenderness = K * L / r;
     const fs = Pcr / P;
+
+    const rPcr = resultInSystem(Pcr, 'kN', 'force');
+    const rSigma = resultInSystem(sigmaMPa, 'MPa', 'stress');
+    const rR = resultInSystem(r * 100, 'cm', 'length');
+
     showResult('column', [
-        ['Euler 挫屈載重 P_cr', fmt(Pcr, 1) + ' kN'],
-        ['軸壓應力 \u03C3', fmt(sigmaMPa, 2) + ' MPa'],
-        ['迴轉半徑 r', fmt(r * 100, 2) + ' cm'],
-        ['細長比 KL/r', fmt(slenderness, 1)],
-        ['安全係數 P_cr/P', fmt(fs, 2)],
-        ['狀態', fs >= 1.0 ? '\u2705 安全' : '\u26A0\uFE0F 超過挫屈載重！'],
+        ['Euler \u631C\u5C48\u8F09\u91CD P_cr', fmt(rPcr.v, 1) + ' ' + rPcr.u],
+        ['\u8EF8\u58D3\u61C9\u529B \u03C3', fmt(rSigma.v, 2) + ' ' + rSigma.u],
+        ['\u8FF4\u8F49\u534A\u5F91 r', fmt(rR.v, 2) + ' ' + rR.u],
+        ['\u7D30\u9577\u6BD4 KL/r', fmt(slenderness, 1)],
+        ['\u5B89\u5168\u4FC2\u6578 P_cr/P', fmt(fs, 2)],
+        ['\u72C0\u614B', fs >= 1.0 ? '\u2705 \u5B89\u5168' : '\u26A0\uFE0F \u8D85\u904E\u631C\u5C48\u8F09\u91CD\uFF01'],
     ]);
 }
 
@@ -811,14 +940,14 @@ function calcConcrete() {
     }
     const totalVol = vol * n;
     const withLoss = totalVol * (1 + loss / 100);
-    const weight = withLoss * 2400; // kg
-    const trucks = Math.ceil(withLoss / 9); // 9 m³ per truck
+    const weight = withLoss * 2400;
+    const trucks = Math.ceil(withLoss / 9);
     showResult('concrete', [
-        ['單支體積', fmt(vol, 3) + ' m\u00B3'],
-        ['總體積 (淨)', fmt(totalVol, 3) + ' m\u00B3'],
-        ['含損耗體積', fmt(withLoss, 3) + ' m\u00B3'],
-        ['預估重量', fmt(weight, 0) + ' kg (' + fmt(weight / 1000, 2) + ' t)'],
-        ['預拌車數 (9m\u00B3/車)', trucks + ' 車'],
+        ['\u55AE\u652F\u9AD4\u7A4D', fmt(vol, 3) + ' m\u00B3'],
+        ['\u7E3D\u9AD4\u7A4D (\u6DE8)', fmt(totalVol, 3) + ' m\u00B3'],
+        ['\u542B\u640D\u8017\u9AD4\u7A4D', fmt(withLoss, 3) + ' m\u00B3'],
+        ['\u9810\u4F30\u91CD\u91CF', fmt(weight, 0) + ' kg (' + fmt(weight / 1000, 2) + ' t)'],
+        ['\u9810\u62CC\u8ECA\u6578 (9m\u00B3/\u8ECA)', trucks + ' \u8ECA'],
     ]);
 }
 
@@ -840,14 +969,14 @@ function calcRebar() {
     const rb = rebarData[no];
     const totalLen = len * qty * (1 + lap / 100);
     const totalWeight = totalLen * rb.weight;
-    const area = Math.PI * Math.pow(rb.dia / 2, 2); // mm²
+    const area = Math.PI * Math.pow(rb.dia / 2, 2);
     showResult('rebar', [
-        ['鋼筋規格', rb.name],
-        ['直徑', rb.dia + ' mm'],
-        ['單位重', rb.weight + ' kg/m'],
-        ['單支斷面積', fmt(area, 1) + ' mm\u00B2'],
-        ['總長度 (含搭接)', fmt(totalLen, 2) + ' m'],
-        ['總重量', fmt(totalWeight, 1) + ' kg (' + fmt(totalWeight / 1000, 3) + ' t)'],
+        ['\u92FC\u7B4B\u898F\u683C', rb.name],
+        ['\u76F4\u5F91', rb.dia + ' mm'],
+        ['\u55AE\u4F4D\u91CD', rb.weight + ' kg/m'],
+        ['\u55AE\u652F\u65B7\u9762\u7A4D', fmt(area, 1) + ' mm\u00B2'],
+        ['\u7E3D\u9577\u5EA6 (\u542B\u642D\u63A5)', fmt(totalLen, 2) + ' m'],
+        ['\u7E3D\u91CD\u91CF', fmt(totalWeight, 1) + ' kg (' + fmt(totalWeight / 1000, 3) + ' t)'],
     ]);
 }
 
@@ -867,55 +996,63 @@ function calcElectrical() {
         : Math.sqrt(3) * I * L * R / 1000;
     const VdPercent = (Vd / V) * 100;
     showResult('electrical', [
-        ['電流 I', fmt(I, 2) + ' A'],
-        ['電壓降 Vd', fmt(Vd, 2) + ' V'],
-        ['電壓降比例', fmt(VdPercent, 2) + ' %'],
-        ['電壓降狀態', VdPercent <= 3 ? '\u2705 合格 (\u22643%)' : '\u26A0\uFE0F 超過 3% 建議加大線徑'],
-        ['視在功率', fmt(P / pf, 2) + ' kVA'],
+        ['\u96FB\u6D41 I', fmt(I, 2) + ' A'],
+        ['\u96FB\u58D3\u964D Vd', fmt(Vd, 2) + ' V'],
+        ['\u96FB\u58D3\u964D\u6BD4\u4F8B', fmt(VdPercent, 2) + ' %'],
+        ['\u96FB\u58D3\u964D\u72C0\u614B', VdPercent <= 3 ? '\u2705 \u5408\u683C (\u22643%)' : '\u26A0\uFE0F \u8D85\u904E 3% \u5EFA\u8B70\u52A0\u5927\u7DDA\u5F91'],
+        ['\u8996\u5728\u529F\u7387', fmt(P / pf, 2) + ' kVA'],
     ]);
 }
 
 // ===== 邊坡穩定 =====
 function calcSlope() {
     const c = valU('slope-c');
-    const phi = valU('slope-phi') * Math.PI / 180; // 度→rad
+    const phi = valU('slope-phi') * Math.PI / 180;
     const gamma = valU('slope-gamma');
-    const beta = valU('slope-beta') * Math.PI / 180; // 度→rad
+    const beta = valU('slope-beta') * Math.PI / 180;
     const H = valU('slope-H');
     const numerator = c + gamma * H * Math.pow(Math.cos(beta), 2) * Math.tan(phi);
     const denominator = gamma * H * Math.sin(beta) * Math.cos(beta);
     const FS = numerator / denominator;
+
+    const rNum = resultInSystem(numerator, 'kPa', 'stress');
+    const rDen = resultInSystem(denominator, 'kPa', 'stress');
+
     let status;
-    if (FS >= 1.5) status = '\u2705 安全 (FS \u2265 1.5)';
-    else if (FS >= 1.0) status = '\u26A0\uFE0F 臨界安全 (1.0 \u2264 FS < 1.5)';
-    else status = '\u274C 不安全 (FS < 1.0)';
+    if (FS >= 1.5) status = '\u2705 \u5B89\u5168 (FS \u2265 1.5)';
+    else if (FS >= 1.0) status = '\u26A0\uFE0F \u81E8\u754C\u5B89\u5168 (1.0 \u2264 FS < 1.5)';
+    else status = '\u274C \u4E0D\u5B89\u5168 (FS < 1.0)';
     showResult('slope', [
-        ['安全係數 FS', fmt(FS, 3)],
-        ['抵抗力 (分子)', fmt(numerator, 2) + ' kPa'],
-        ['驅動力 (分母)', fmt(denominator, 2) + ' kPa'],
-        ['穩定狀態', status],
+        ['\u5B89\u5168\u4FC2\u6578 FS', fmt(FS, 3)],
+        ['\u62B5\u6297\u529B (\u5206\u5B50)', fmt(rNum.v, 2) + ' ' + rNum.u],
+        ['\u9A45\u52D5\u529B (\u5206\u6BCD)', fmt(rDen.v, 2) + ' ' + rDen.u],
+        ['\u7A69\u5B9A\u72C0\u614B', status],
     ]);
 }
 
 // ===== 管路水力 =====
 function calcPipe() {
     const D = valU('pipe-d') / 1000; // mm → m
-    const V = valU('pipe-v'); // m/s
-    const L = valU('pipe-l'); // m
+    const V = valU('pipe-v');
+    const L = valU('pipe-l');
     const f = val('pipe-f');
     const A = Math.PI * Math.pow(D / 2, 2);
-    const Q = A * V; // m³/s
-    const Qlpm = Q * 1000 * 60; // L/min
+    const Q = A * V;
+    const Qlpm = Q * 1000 * 60;
     const g = 9.81;
     const hf = f * (L / D) * Math.pow(V, 2) / (2 * g);
-    const Re = V * D / 1.004e-6; // water at 20°C
+    const Re = V * D / 1.004e-6;
+
+    const rA = resultInSystem(A * 1e4, 'cm\u00B2', 'area');
+    const rHf = resultInSystem(hf, 'm', 'length');
+
     showResult('pipe', [
-        ['斷面積 A', fmt(A * 1e4, 2) + ' cm\u00B2'],
-        ['流量 Q', fmt(Q, 5) + ' m\u00B3/s'],
-        ['流量 Q', fmt(Qlpm, 1) + ' L/min'],
-        ['摩擦損失 h_f', fmt(hf, 3) + ' m'],
-        ['雷諾數 Re', fmt(Re, 0)],
-        ['流態', Re < 2300 ? '層流' : Re < 4000 ? '過渡流' : '紊流'],
+        ['\u65B7\u9762\u7A4D A', fmt(rA.v, 2) + ' ' + rA.u],
+        ['\u6D41\u91CF Q', fmt(Q, 5) + ' m\u00B3/s'],
+        ['\u6D41\u91CF Q', fmt(Qlpm, 1) + ' L/min'],
+        ['\u6469\u64E6\u640D\u5931 h_f', fmt(rHf.v, 3) + ' ' + rHf.u],
+        ['\u96F7\u8AFE\u6578 Re', fmt(Re, 0)],
+        ['\u6D41\u614B', Re < 2300 ? '\u5C64\u6D41' : Re < 4000 ? '\u904E\u6E21\u6D41' : '\u7D0A\u6D41'],
     ]);
 }
 
@@ -942,8 +1079,8 @@ const unitData = {
         toBase: { Pa: 1, kPa: 1e3, MPa: 1e6, 'kgf/cm\u00B2': 98066.5, psi: 6894.76, atm: 101325, bar: 1e5 }
     },
     moment: {
-        units: ['N\u00B7m', 'kN\u00B7m', 'kgf\u00B7m', 'tf\u00B7m', 'lbf\u00B7ft'],
-        toBase: { 'N\u00B7m': 1, 'kN\u00B7m': 1000, 'kgf\u00B7m': 9.80665, 'tf\u00B7m': 9806.65, 'lbf\u00B7ft': 1.35582 }
+        units: ['N\u00B7m', 'kN\u00B7m', 'kgf\u00B7cm', 'kgf\u00B7m', 'tf\u00B7m', 'tf\u00B7cm', 'N\u00B7mm', 'lbf\u00B7ft'],
+        toBase: { 'N\u00B7m': 1, 'kN\u00B7m': 1000, 'kgf\u00B7cm': 0.0980665, 'kgf\u00B7m': 9.80665, 'tf\u00B7m': 9806.65, 'tf\u00B7cm': 98.0665, 'N\u00B7mm': 0.001, 'lbf\u00B7ft': 1.35582 }
     }
 };
 
@@ -963,12 +1100,12 @@ function calcUnit() {
     const base = unitData[cat].toBase;
     const result = v * base[from] / base[to];
     showResult('unit', [
-        ['輸入', v + ' ' + from],
-        ['結果', fmt(result, 6) + ' ' + to],
+        ['\u8F38\u5165', v + ' ' + from],
+        ['\u7D50\u679C', fmt(result, 6) + ' ' + to],
     ]);
 }
 
-// Init unit selects
+// Init
 updateUnitOptions();
 initUnitSelectors();
 </script>
