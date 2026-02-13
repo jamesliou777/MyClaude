@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工程試算工具</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --accent: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 { font-size: 1.5rem; font-weight: 700; }
+        header p { font-size: 0.85rem; opacity: 0.85; margin-top: 0.25rem; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--card);
+            padding: 0.75rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .tab-btn {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid transparent;
+            background: var(--bg);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover { background: #e0e7ff; color: var(--primary); }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 0.25rem;
+            color: var(--primary);
+        }
+
+        .card .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .formula-display {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-family: "Cambria Math", "Times New Roman", serif;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* Form */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .form-group { display: flex; flex-direction: column; }
+
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            color: var(--text);
+        }
+
+        .form-group label span {
+            font-weight: 400;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.6rem 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+            background: white;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input-unit-group {
+            display: flex;
+            gap: 0;
+        }
+
+        .input-unit-group input {
+            flex: 1;
+            border-radius: 8px 0 0 8px;
+            border-right: none;
+            min-width: 0;
+        }
+
+        .input-unit-group select.unit-select {
+            width: auto;
+            min-width: 70px;
+            max-width: 100px;
+            border-radius: 0 8px 8px 0;
+            border-left: 1px solid var(--border);
+            font-size: 0.8rem;
+            padding: 0.4rem 0.3rem;
+            background: #f8fafc;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .input-unit-group select.unit-select:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.7rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 1rem;
+        }
+
+        .btn:hover { background: var(--primary-dark); }
+
+        .btn-secondary {
+            background: #64748b;
+        }
+        .btn-secondary:hover { background: #475569; }
+
+        /* Results */
+        .result-box {
+            margin-top: 1rem;
+            padding: 1rem 1.25rem;
+            background: #f0fdf4;
+            border: 2px solid #bbf7d0;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result-box.show { display: block; }
+
+        .result-box h3 {
+            font-size: 0.9rem;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+
+        .result-item:last-child { border-bottom: none; }
+
+        .result-item .label { color: var(--text-secondary); font-size: 0.9rem; }
+        .result-item .value { font-weight: 700; color: var(--text); font-size: 0.95rem; }
+
+        /* Diagram */
+        .diagram-container {
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .diagram-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .tab-nav { gap: 0.35rem; padding: 0.5rem; }
+            .tab-btn { padding: 0.5rem 0.8rem; font-size: 0.8rem; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Print */
+        @media print {
+            header { position: static; }
+            .tab-nav, .btn { display: none; }
+            .tab-content { display: block !important; }
+            .card { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>&#9881; 工程試算工具</h1>
+    <p>Engineering Calculator - 結構 / 材料 / 電機 / 單位換算</p>
+</header>
+
+<div class="container">
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="beam">梁分析</button>
+        <button class="tab-btn" data-tab="column">柱載重</button>
+        <button class="tab-btn" data-tab="concrete">混凝土用量</button>
+        <button class="tab-btn" data-tab="rebar">鋼筋計算</button>
+        <button class="tab-btn" data-tab="electrical">電機計算</button>
+        <button class="tab-btn" data-tab="slope">邊坡穩定</button>
+        <button class="tab-btn" data-tab="pipe">管路水力</button>
+        <button class="tab-btn" data-tab="unit">單位換算</button>
+    </nav>
+
+    <!-- ==================== 梁分析 ==================== -->
+    <div class="tab-content active" id="tab-beam">
+        <div class="card">
+            <h2>簡支梁分析</h2>
+            <p class="subtitle">均佈載重下的簡支梁 - 彎矩、剪力、撓度計算</p>
+            <div class="formula-display">
+                M_max = wL&sup2;/8 &nbsp;&nbsp;|&nbsp;&nbsp; V_max = wL/2 &nbsp;&nbsp;|&nbsp;&nbsp; &delta;_max = 5wL⁴ / (384EI)
+            </div>
+            <div class="diagram-container">
+                <svg width="400" height="100" viewBox="0 0 400 100">
+                    <line x1="50" y1="60" x2="350" y2="60" stroke="#2563eb" stroke-width="4"/>
+                    <polygon points="50,60 40,80 60,80" fill="#2563eb"/>
+                    <polygon points="350,60 340,80 360,80" fill="#2563eb"/>
+                    <line x1="50" y1="80" x2="360" y2="80" stroke="#94a3b8" stroke-width="1"/>
+                    <!-- arrows for distributed load -->
+                    <g stroke="#ef4444" stroke-width="1.5" fill="#ef4444">
+                        <line x1="80" y1="20" x2="80" y2="55"/><polygon points="80,55 76,47 84,47"/>
+                        <line x1="120" y1="20" x2="120" y2="55"/><polygon points="120,55 116,47 124,47"/>
+                        <line x1="160" y1="20" x2="160" y2="55"/><polygon points="160,55 156,47 164,47"/>
+                        <line x1="200" y1="20" x2="200" y2="55"/><polygon points="200,55 196,47 204,47"/>
+                        <line x1="240" y1="20" x2="240" y2="55"/><polygon points="240,55 236,47 244,47"/>
+                        <line x1="280" y1="20" x2="280" y2="55"/><polygon points="280,55 276,47 284,47"/>
+                        <line x1="320" y1="20" x2="320" y2="55"/><polygon points="320,55 316,47 324,47"/>
+                    </g>
+                    <line x1="75" y1="17" x2="325" y2="17" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="200" y="12" text-anchor="middle" fill="#ef4444" font-size="12">w (kN/m)</text>
+                    <text x="200" y="96" text-anchor="middle" fill="#64748b" font-size="12">L</text>
+                </svg>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>跨距 L <span>(m)</span></label>
+                    <input type="number" id="beam-L" value="6" step="0.1" min="0.1">
+                </div>
+                <div class="form-group">
+                    <label>均佈載重 w <span>(kN/m)</span></label>
+                    <input type="number" id="beam-w" value="10" step="0.1" min="0">
+                </div>
+                <div class="form-group">
+                    <label>彈性模數 E <span>(GPa)</span></label>
+                    <input type="number" id="beam-E" value="200" step="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>慣性矩 I <span>(cm⁴)</span></label>
+                    <input type="number" id="beam-I" value="8356" step="1" min="1">
+                </div>
+            </div>
+            <button class="btn" onclick="calcBeam()">計算</button>
+            <div class="result-box" id="result-beam">
+                <h3>計算結果</h3>
+                <div id="result-beam-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 柱載重 ==================== -->
+    <div class="tab-content" id="tab-column">
+        <div class="card">
+            <h2>柱軸壓載重分析</h2>
+            <p class="subtitle">Euler 挫屈載重 & 容許軸壓力計算</p>
+            <div class="formula-display">
+                P_cr = &pi;&sup2;EI / (KL)&sup2; &nbsp;&nbsp;|&nbsp;&nbsp; &sigma; = P / A
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>彈性模數 E <span>(GPa)</span></label>
+                    <input type="number" id="col-E" value="200" step="1">
+                </div>
+                <div class="form-group">
+                    <label>慣性矩 I <span>(cm⁴)</span></label>
+                    <input type="number" id="col-I" value="5696" step="1">
+                </div>
+                <div class="form-group">
+                    <label>斷面積 A <span>(cm&sup2;)</span></label>
+                    <input type="number" id="col-A" value="76.4" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>柱長度 L <span>(m)</span></label>
+                    <input type="number" id="col-L" value="4" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>有效長度係數 K</label>
+                    <select id="col-K">
+                        <option value="0.5">0.5 - 兩端固定</option>
+                        <option value="0.7">0.7 - 一端固定一端鉸</option>
+                        <option value="1.0" selected>1.0 - 兩端鉸接</option>
+                        <option value="2.0">2.0 - 一端固定一端自由</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>軸壓力 P <span>(kN)</span></label>
+                    <input type="number" id="col-P" value="500" step="1">
+                </div>
+            </div>
+            <button class="btn" onclick="calcColumn()">計算</button>
+            <div class="result-box" id="result-column">
+                <h3>計算結果</h3>
+                <div id="result-column-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 混凝土用量 ==================== -->
+    <div class="tab-content" id="tab-concrete">
+        <div class="card">
+            <h2>混凝土用量估算</h2>
+            <p class="subtitle">依據構件尺寸計算混凝土體積、重量及預拌車數</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>構件類型</label>
+                    <select id="conc-type" onchange="toggleConcShape()">
+                        <option value="rect">矩形 (板/梁/牆/基礎)</option>
+                        <option value="cylinder">圓柱</option>
+                    </select>
+                </div>
+                <div class="form-group" id="conc-w-group">
+                    <label>寬度 <span>(m)</span></label>
+                    <input type="number" id="conc-w" value="0.4" step="0.01">
+                </div>
+                <div class="form-group" id="conc-d-group" style="display:none;">
+                    <label>直徑 <span>(m)</span></label>
+                    <input type="number" id="conc-d" value="0.6" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>高度/深度 <span>(m)</span></label>
+                    <input type="number" id="conc-h" value="0.6" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>長度 <span>(m)</span></label>
+                    <input type="number" id="conc-l" value="8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>數量 <span>(支/片)</span></label>
+                    <input type="number" id="conc-n" value="1" step="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>損耗率 <span>(%)</span></label>
+                    <input type="number" id="conc-loss" value="5" step="1" min="0">
+                </div>
+            </div>
+            <button class="btn" onclick="calcConcrete()">計算</button>
+            <div class="result-box" id="result-concrete">
+                <h3>計算結果</h3>
+                <div id="result-concrete-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 鋼筋計算 ==================== -->
+    <div class="tab-content" id="tab-rebar">
+        <div class="card">
+            <h2>鋼筋數量與重量計算</h2>
+            <p class="subtitle">依據鋼筋號數計算單位重量、總重量</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>鋼筋號數</label>
+                    <select id="rebar-no">
+                        <option value="3">D10 (#3) - 0.560 kg/m</option>
+                        <option value="4" selected>D13 (#4) - 0.994 kg/m</option>
+                        <option value="5">D16 (#5) - 1.552 kg/m</option>
+                        <option value="6">D19 (#6) - 2.235 kg/m</option>
+                        <option value="7">D22 (#7) - 2.985 kg/m</option>
+                        <option value="8">D25 (#8) - 3.980 kg/m</option>
+                        <option value="9">D29 (#9) - 5.080 kg/m</option>
+                        <option value="10">D32 (#10) - 6.390 kg/m</option>
+                        <option value="11">D36 (#11) - 7.900 kg/m</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>單支長度 <span>(m)</span></label>
+                    <input type="number" id="rebar-len" value="6" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>支數</label>
+                    <input type="number" id="rebar-qty" value="20" step="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>搭接率 <span>(%)</span></label>
+                    <input type="number" id="rebar-lap" value="10" step="1" min="0">
+                </div>
+            </div>
+            <button class="btn" onclick="calcRebar()">計算</button>
+            <div class="result-box" id="result-rebar">
+                <h3>計算結果</h3>
+                <div id="result-rebar-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 電機計算 ==================== -->
+    <div class="tab-content" id="tab-electrical">
+        <div class="card">
+            <h2>電機工程計算</h2>
+            <p class="subtitle">電力、電流、電壓降及電纜選用計算</p>
+            <div class="formula-display">
+                P = V &times; I &times; cos&phi; &times; &radic;3 (三相) &nbsp;&nbsp;|&nbsp;&nbsp; Vd = 2 &times; I &times; L &times; R / 1000
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>相數</label>
+                    <select id="elec-phase">
+                        <option value="1">單相</option>
+                        <option value="3" selected>三相</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>電壓 <span>(V)</span></label>
+                    <input type="number" id="elec-v" value="380" step="1">
+                </div>
+                <div class="form-group">
+                    <label>功率 <span>(kW)</span></label>
+                    <input type="number" id="elec-p" value="15" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>功率因數 cos&phi;</label>
+                    <input type="number" id="elec-pf" value="0.85" step="0.01" min="0.1" max="1">
+                </div>
+                <div class="form-group">
+                    <label>電纜長度 <span>(m)</span></label>
+                    <input type="number" id="elec-len" value="50" step="1">
+                </div>
+                <div class="form-group">
+                    <label>導體電阻 <span>(&Omega;/km)</span></label>
+                    <input type="number" id="elec-r" value="1.15" step="0.01">
+                </div>
+            </div>
+            <button class="btn" onclick="calcElectrical()">計算</button>
+            <div class="result-box" id="result-electrical">
+                <h3>計算結果</h3>
+                <div id="result-electrical-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 邊坡穩定 ==================== -->
+    <div class="tab-content" id="tab-slope">
+        <div class="card">
+            <h2>邊坡穩定分析 (簡易法)</h2>
+            <p class="subtitle">無限邊坡安全係數計算 (乾燥 / 含水條件)</p>
+            <div class="formula-display">
+                FS = (c + &gamma;H cos&sup2;&beta; tan&phi;) / (&gamma;H sin&beta; cos&beta;)
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>凝聚力 c <span>(kPa)</span></label>
+                    <input type="number" id="slope-c" value="10" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label>內摩擦角 &phi; <span>(度)</span></label>
+                    <input type="number" id="slope-phi" value="30" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label>土壤單位重 &gamma; <span>(kN/m&sup3;)</span></label>
+                    <input type="number" id="slope-gamma" value="18" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>坡面角度 &beta; <span>(度)</span></label>
+                    <input type="number" id="slope-beta" value="35" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label>滑動面深度 H <span>(m)</span></label>
+                    <input type="number" id="slope-H" value="3" step="0.1">
+                </div>
+            </div>
+            <button class="btn" onclick="calcSlope()">計算</button>
+            <div class="result-box" id="result-slope">
+                <h3>計算結果</h3>
+                <div id="result-slope-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 管路水力 ==================== -->
+    <div class="tab-content" id="tab-pipe">
+        <div class="card">
+            <h2>管路水力計算</h2>
+            <p class="subtitle">流速、流量、摩擦損失 (Darcy-Weisbach)</p>
+            <div class="formula-display">
+                Q = A &times; V &nbsp;&nbsp;|&nbsp;&nbsp; h_f = f &times; (L/D) &times; V&sup2; / (2g)
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>管內徑 D <span>(mm)</span></label>
+                    <input type="number" id="pipe-d" value="150" step="1">
+                </div>
+                <div class="form-group">
+                    <label>流速 V <span>(m/s)</span></label>
+                    <input type="number" id="pipe-v" value="2" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>管長 L <span>(m)</span></label>
+                    <input type="number" id="pipe-l" value="100" step="1">
+                </div>
+                <div class="form-group">
+                    <label>摩擦係數 f</label>
+                    <input type="number" id="pipe-f" value="0.02" step="0.001">
+                </div>
+            </div>
+            <button class="btn" onclick="calcPipe()">計算</button>
+            <div class="result-box" id="result-pipe">
+                <h3>計算結果</h3>
+                <div id="result-pipe-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 單位換算 ==================== -->
+    <div class="tab-content" id="tab-unit">
+        <div class="card">
+            <h2>工程單位換算</h2>
+            <p class="subtitle">常用工程單位快速換算</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>換算類別</label>
+                    <select id="unit-cat" onchange="updateUnitOptions()">
+                        <option value="length">長度</option>
+                        <option value="area">面積</option>
+                        <option value="volume">體積</option>
+                        <option value="force">力</option>
+                        <option value="pressure">壓力</option>
+                        <option value="moment">彎矩</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>數值</label>
+                    <input type="number" id="unit-val" value="1" step="any">
+                </div>
+                <div class="form-group">
+                    <label>從</label>
+                    <select id="unit-from"></select>
+                </div>
+                <div class="form-group">
+                    <label>到</label>
+                    <select id="unit-to"></select>
+                </div>
+            </div>
+            <button class="btn" onclick="calcUnit()">換算</button>
+            <div class="result-box" id="result-unit">
+                <h3>換算結果</h3>
+                <div id="result-unit-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p>工程試算工具 &copy; 2026 | 僅供參考，實際工程設計請依規範辦理</p>
+</footer>
+
+<script>
+// ===== Tab Switching =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+});
+
+// ===== Helpers =====
+function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function sel(id) { return document.getElementById(id).value; }
+
+function showResult(id, items) {
+    const box = document.getElementById('result-' + id);
+    const content = document.getElementById('result-' + id + '-content');
+    content.innerHTML = items.map(([label, value]) =>
+        `<div class="result-item"><span class="label">${label}</span><span class="value">${value}</span></div>`
+    ).join('');
+    box.classList.add('show');
+}
+
+function fmt(n, d = 4) {
+    if (Math.abs(n) >= 1e6 || (Math.abs(n) < 0.001 && n !== 0)) return n.toExponential(d);
+    return parseFloat(n.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d });
+}
+
+// ===== 單位定義 =====
+// 每個欄位的 units 物件: { 顯示名稱: 轉換到基準單位的倍率 }
+const fieldUnits = {
+    // -- 梁分析 (base: m, kN/m, kN/m², m⁴) --
+    'beam-L':  { dflt: 'm',    units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'beam-w':  { dflt: 'kN/m', units: { 'kN/m': 1, 'N/m': 0.001, 'kgf/m': 0.00980665, 'lbf/ft': 0.0145939 } },
+    'beam-E':  { dflt: 'GPa',  units: { 'GPa': 1e6, 'MPa': 1e3, 'ksi': 6.89476e3 } },
+    'beam-I':  { dflt: 'cm\u2074', units: { 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
+
+    // -- 柱載重 (base: kN/m², m⁴, m², m, kN) --
+    'col-E':   { dflt: 'GPa',  units: { 'GPa': 1e6, 'MPa': 1e3, 'ksi': 6.89476e3 } },
+    'col-I':   { dflt: 'cm\u2074', units: { 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
+    'col-A':   { dflt: 'cm\u00B2', units: { 'cm\u00B2': 1e-4, 'mm\u00B2': 1e-6, 'in\u00B2': 6.4516e-4 } },
+    'col-L':   { dflt: 'm',    units: { 'm': 1, 'cm': 0.01, 'ft': 0.3048 } },
+    'col-P':   { dflt: 'kN',   units: { 'kN': 1, 'N': 0.001, 'kgf': 0.00980665, 'tf': 9.80665, 'lbf': 0.00444822 } },
+
+    // -- 混凝土 (base: m) --
+    'conc-w':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'conc-d':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'conc-h':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+    'conc-l':  { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
+
+    // -- 鋼筋 (base: m) --
+    'rebar-len': { dflt: 'm', units: { 'm': 1, 'cm': 0.01, 'ft': 0.3048 } },
+
+    // -- 電機 (base: kW, m, Ω/km) --
+    'elec-p':   { dflt: 'kW',   units: { 'kW': 1, 'W': 0.001, 'HP': 0.7457 } },
+    'elec-len': { dflt: 'm',    units: { 'm': 1, 'ft': 0.3048 } },
+    'elec-r':   { dflt: '\u03A9/km', units: { '\u03A9/km': 1, '\u03A9/m': 1000 } },
+
+    // -- 邊坡 (base: kPa, 度, kN/m³, m) --
+    'slope-c':     { dflt: 'kPa',    units: { 'kPa': 1, 'Pa': 0.001, 'psi': 6.89476 } },
+    'slope-phi':   { dflt: '\u00B0',  units: { '\u00B0': 1, 'rad': 57.29578 } },
+    'slope-gamma': { dflt: 'kN/m\u00B3', units: { 'kN/m\u00B3': 1, 'pcf': 0.157087 } },
+    'slope-beta':  { dflt: '\u00B0',  units: { '\u00B0': 1, 'rad': 57.29578 } },
+    'slope-H':     { dflt: 'm',      units: { 'm': 1, 'cm': 0.01, 'ft': 0.3048 } },
+
+    // -- 管路 (base: mm, m/s, m) --
+    'pipe-d': { dflt: 'mm',  units: { 'mm': 1, 'cm': 10, 'in': 25.4 } },
+    'pipe-v': { dflt: 'm/s', units: { 'm/s': 1, 'ft/s': 0.3048 } },
+    'pipe-l': { dflt: 'm',   units: { 'm': 1, 'ft': 0.3048 } },
+};
+
+// 讀取數值並轉換到基準單位
+function valU(id) {
+    const v = parseFloat(document.getElementById(id).value) || 0;
+    const fu = fieldUnits[id];
+    if (!fu) return v;
+    const unitSel = document.getElementById(id + '-unit');
+    if (!unitSel) return v;
+    const factor = fu.units[unitSel.value] || 1;
+    return v * factor;
+}
+
+// 動態建立單位選擇器
+function initUnitSelectors() {
+    for (const [id, cfg] of Object.entries(fieldUnits)) {
+        const input = document.getElementById(id);
+        if (!input) continue;
+
+        // 移除 label 中的單位提示 <span>
+        const label = input.closest('.form-group').querySelector('label span');
+        if (label) label.remove();
+
+        // 建立 unit select
+        const select = document.createElement('select');
+        select.id = id + '-unit';
+        select.className = 'unit-select';
+        for (const [uName] of Object.entries(cfg.units)) {
+            const opt = document.createElement('option');
+            opt.value = uName;
+            opt.textContent = uName;
+            if (uName === cfg.dflt) opt.selected = true;
+            select.appendChild(opt);
+        }
+
+        // 包裝 input + select
+        const wrapper = document.createElement('div');
+        wrapper.className = 'input-unit-group';
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+        wrapper.appendChild(select);
+    }
+}
+
+// ===== 梁分析 =====
+function calcBeam() {
+    const L = valU('beam-L'), w = valU('beam-w');
+    const E = valU('beam-E'); // kN/m²
+    const I = valU('beam-I'); // m⁴
+    const Mmax = w * L * L / 8;
+    const Vmax = w * L / 2;
+    const delta = (5 * w * Math.pow(L, 4)) / (384 * E * I) * 1000; // mm
+    const Rmax = w * L / 2;
+    showResult('beam', [
+        ['最大彎矩 M_max', fmt(Mmax, 2) + ' kN\u00B7m'],
+        ['最大剪力 V_max', fmt(Vmax, 2) + ' kN'],
+        ['支承反力 R', fmt(Rmax, 2) + ' kN'],
+        ['最大撓度 \u03B4_max', fmt(delta, 3) + ' mm'],
+        ['撓度比 L/\u03B4', 'L/' + fmt(L * 1000 / delta, 0)],
+    ]);
+}
+
+// ===== 柱載重 =====
+function calcColumn() {
+    const E = valU('col-E'); // kN/m²
+    const I = valU('col-I'); // m⁴
+    const A = valU('col-A'); // m²
+    const L = valU('col-L'); // m
+    const K = parseFloat(sel('col-K'));
+    const P = valU('col-P'); // kN
+    const Pcr = Math.PI * Math.PI * E * I / Math.pow(K * L, 2);
+    const sigma = P / A; // kN/m²
+    const sigmaMPa = sigma / 1000;
+    const r = Math.sqrt(I / A);
+    const slenderness = K * L / r;
+    const fs = Pcr / P;
+    showResult('column', [
+        ['Euler 挫屈載重 P_cr', fmt(Pcr, 1) + ' kN'],
+        ['軸壓應力 \u03C3', fmt(sigmaMPa, 2) + ' MPa'],
+        ['迴轉半徑 r', fmt(r * 100, 2) + ' cm'],
+        ['細長比 KL/r', fmt(slenderness, 1)],
+        ['安全係數 P_cr/P', fmt(fs, 2)],
+        ['狀態', fs >= 1.0 ? '\u2705 安全' : '\u26A0\uFE0F 超過挫屈載重！'],
+    ]);
+}
+
+// ===== 混凝土用量 =====
+function toggleConcShape() {
+    const t = sel('conc-type');
+    document.getElementById('conc-w-group').style.display = t === 'rect' ? '' : 'none';
+    document.getElementById('conc-d-group').style.display = t === 'cylinder' ? '' : 'none';
+}
+
+function calcConcrete() {
+    const type = sel('conc-type');
+    const h = valU('conc-h'), l = valU('conc-l'), n = val('conc-n'), loss = val('conc-loss');
+    let vol;
+    if (type === 'rect') {
+        const w = valU('conc-w');
+        vol = w * h * l;
+    } else {
+        const d = valU('conc-d');
+        vol = Math.PI * Math.pow(d / 2, 2) * l;
+    }
+    const totalVol = vol * n;
+    const withLoss = totalVol * (1 + loss / 100);
+    const weight = withLoss * 2400; // kg
+    const trucks = Math.ceil(withLoss / 9); // 9 m³ per truck
+    showResult('concrete', [
+        ['單支體積', fmt(vol, 3) + ' m\u00B3'],
+        ['總體積 (淨)', fmt(totalVol, 3) + ' m\u00B3'],
+        ['含損耗體積', fmt(withLoss, 3) + ' m\u00B3'],
+        ['預估重量', fmt(weight, 0) + ' kg (' + fmt(weight / 1000, 2) + ' t)'],
+        ['預拌車數 (9m\u00B3/車)', trucks + ' 車'],
+    ]);
+}
+
+// ===== 鋼筋計算 =====
+function calcRebar() {
+    const rebarData = {
+        3: { dia: 9.53, weight: 0.560, name: 'D10 (#3)' },
+        4: { dia: 12.7, weight: 0.994, name: 'D13 (#4)' },
+        5: { dia: 15.9, weight: 1.552, name: 'D16 (#5)' },
+        6: { dia: 19.1, weight: 2.235, name: 'D19 (#6)' },
+        7: { dia: 22.2, weight: 2.985, name: 'D22 (#7)' },
+        8: { dia: 25.4, weight: 3.980, name: 'D25 (#8)' },
+        9: { dia: 28.7, weight: 5.080, name: 'D29 (#9)' },
+        10: { dia: 32.3, weight: 6.390, name: 'D32 (#10)' },
+        11: { dia: 35.8, weight: 7.900, name: 'D36 (#11)' },
+    };
+    const no = sel('rebar-no');
+    const len = valU('rebar-len'), qty = val('rebar-qty'), lap = val('rebar-lap');
+    const rb = rebarData[no];
+    const totalLen = len * qty * (1 + lap / 100);
+    const totalWeight = totalLen * rb.weight;
+    const area = Math.PI * Math.pow(rb.dia / 2, 2); // mm²
+    showResult('rebar', [
+        ['鋼筋規格', rb.name],
+        ['直徑', rb.dia + ' mm'],
+        ['單位重', rb.weight + ' kg/m'],
+        ['單支斷面積', fmt(area, 1) + ' mm\u00B2'],
+        ['總長度 (含搭接)', fmt(totalLen, 2) + ' m'],
+        ['總重量', fmt(totalWeight, 1) + ' kg (' + fmt(totalWeight / 1000, 3) + ' t)'],
+    ]);
+}
+
+// ===== 電機計算 =====
+function calcElectrical() {
+    const phase = parseInt(sel('elec-phase'));
+    const V = val('elec-v'), P = valU('elec-p'), pf = val('elec-pf');
+    const L = valU('elec-len'), R = valU('elec-r');
+    let I;
+    if (phase === 1) {
+        I = (P * 1000) / (V * pf);
+    } else {
+        I = (P * 1000) / (Math.sqrt(3) * V * pf);
+    }
+    const Vd = phase === 1
+        ? 2 * I * L * R / 1000
+        : Math.sqrt(3) * I * L * R / 1000;
+    const VdPercent = (Vd / V) * 100;
+    showResult('electrical', [
+        ['電流 I', fmt(I, 2) + ' A'],
+        ['電壓降 Vd', fmt(Vd, 2) + ' V'],
+        ['電壓降比例', fmt(VdPercent, 2) + ' %'],
+        ['電壓降狀態', VdPercent <= 3 ? '\u2705 合格 (\u22643%)' : '\u26A0\uFE0F 超過 3% 建議加大線徑'],
+        ['視在功率', fmt(P / pf, 2) + ' kVA'],
+    ]);
+}
+
+// ===== 邊坡穩定 =====
+function calcSlope() {
+    const c = valU('slope-c');
+    const phi = valU('slope-phi') * Math.PI / 180; // 度→rad
+    const gamma = valU('slope-gamma');
+    const beta = valU('slope-beta') * Math.PI / 180; // 度→rad
+    const H = valU('slope-H');
+    const numerator = c + gamma * H * Math.pow(Math.cos(beta), 2) * Math.tan(phi);
+    const denominator = gamma * H * Math.sin(beta) * Math.cos(beta);
+    const FS = numerator / denominator;
+    let status;
+    if (FS >= 1.5) status = '\u2705 安全 (FS \u2265 1.5)';
+    else if (FS >= 1.0) status = '\u26A0\uFE0F 臨界安全 (1.0 \u2264 FS < 1.5)';
+    else status = '\u274C 不安全 (FS < 1.0)';
+    showResult('slope', [
+        ['安全係數 FS', fmt(FS, 3)],
+        ['抵抗力 (分子)', fmt(numerator, 2) + ' kPa'],
+        ['驅動力 (分母)', fmt(denominator, 2) + ' kPa'],
+        ['穩定狀態', status],
+    ]);
+}
+
+// ===== 管路水力 =====
+function calcPipe() {
+    const D = valU('pipe-d') / 1000; // mm → m
+    const V = valU('pipe-v'); // m/s
+    const L = valU('pipe-l'); // m
+    const f = val('pipe-f');
+    const A = Math.PI * Math.pow(D / 2, 2);
+    const Q = A * V; // m³/s
+    const Qlpm = Q * 1000 * 60; // L/min
+    const g = 9.81;
+    const hf = f * (L / D) * Math.pow(V, 2) / (2 * g);
+    const Re = V * D / 1.004e-6; // water at 20°C
+    showResult('pipe', [
+        ['斷面積 A', fmt(A * 1e4, 2) + ' cm\u00B2'],
+        ['流量 Q', fmt(Q, 5) + ' m\u00B3/s'],
+        ['流量 Q', fmt(Qlpm, 1) + ' L/min'],
+        ['摩擦損失 h_f', fmt(hf, 3) + ' m'],
+        ['雷諾數 Re', fmt(Re, 0)],
+        ['流態', Re < 2300 ? '層流' : Re < 4000 ? '過渡流' : '紊流'],
+    ]);
+}
+
+// ===== 單位換算 =====
+const unitData = {
+    length: {
+        units: ['mm', 'cm', 'm', 'km', 'in', 'ft', 'yd'],
+        toBase: { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, yd: 0.9144 }
+    },
+    area: {
+        units: ['mm\u00B2', 'cm\u00B2', 'm\u00B2', '\u5761', '\u7532', 'ft\u00B2', 'in\u00B2'],
+        toBase: { 'mm\u00B2': 1e-6, 'cm\u00B2': 1e-4, 'm\u00B2': 1, '\u5761': 3305.785, '\u7532': 2934, 'ft\u00B2': 0.0929, 'in\u00B2': 6.4516e-4 }
+    },
+    volume: {
+        units: ['cm\u00B3', 'm\u00B3', 'L', 'gal(US)'],
+        toBase: { 'cm\u00B3': 1e-6, 'm\u00B3': 1, 'L': 0.001, 'gal(US)': 0.003785 }
+    },
+    force: {
+        units: ['N', 'kN', 'kgf', 'tf', 'lbf'],
+        toBase: { N: 1, kN: 1000, kgf: 9.80665, tf: 9806.65, lbf: 4.44822 }
+    },
+    pressure: {
+        units: ['Pa', 'kPa', 'MPa', 'kgf/cm\u00B2', 'psi', 'atm', 'bar'],
+        toBase: { Pa: 1, kPa: 1e3, MPa: 1e6, 'kgf/cm\u00B2': 98066.5, psi: 6894.76, atm: 101325, bar: 1e5 }
+    },
+    moment: {
+        units: ['N\u00B7m', 'kN\u00B7m', 'kgf\u00B7m', 'tf\u00B7m', 'lbf\u00B7ft'],
+        toBase: { 'N\u00B7m': 1, 'kN\u00B7m': 1000, 'kgf\u00B7m': 9.80665, 'tf\u00B7m': 9806.65, 'lbf\u00B7ft': 1.35582 }
+    }
+};
+
+function updateUnitOptions() {
+    const cat = sel('unit-cat');
+    const units = unitData[cat].units;
+    const fromSel = document.getElementById('unit-from');
+    const toSel = document.getElementById('unit-to');
+    fromSel.innerHTML = units.map((u, i) => `<option value="${u}" ${i === 0 ? 'selected' : ''}>${u}</option>`).join('');
+    toSel.innerHTML = units.map((u, i) => `<option value="${u}" ${i === 1 ? 'selected' : ''}>${u}</option>`).join('');
+}
+
+function calcUnit() {
+    const cat = sel('unit-cat');
+    const v = val('unit-val');
+    const from = sel('unit-from'), to = sel('unit-to');
+    const base = unitData[cat].toBase;
+    const result = v * base[from] / base[to];
+    showResult('unit', [
+        ['輸入', v + ' ' + from],
+        ['結果', fmt(result, 6) + ' ' + to],
+    ]);
+}
+
+// Init unit selects
+updateUnitOptions();
+initUnitSelectors();
+</script>
+
+</body>
+</html>
