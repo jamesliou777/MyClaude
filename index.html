@@ -320,6 +320,7 @@
         <button class="tab-btn" data-tab="column">柱載重</button>
         <button class="tab-btn" data-tab="concrete">混凝土用量</button>
         <button class="tab-btn" data-tab="rebar">鋼筋計算</button>
+        <button class="tab-btn" data-tab="rcbeam">RC梁設計</button>
         <button class="tab-btn" data-tab="unit">單位換算</button>
     </nav>
 
@@ -512,6 +513,90 @@
         </div>
     </div>
 
+    <!-- ==================== RC梁設計 ==================== -->
+    <div class="tab-content" id="tab-rcbeam">
+        <div class="card">
+            <h2>RC梁撓曲設計 (ACI 318)</h2>
+            <p class="subtitle">單筋矩形梁 - 依設計彎矩求所需鋼筋量</p>
+            <div class="formula-display">
+                &phi;Mn &ge; Mu &nbsp;&nbsp;|&nbsp;&nbsp; a = As&middot;fy / (0.85&middot;f'c&middot;b) &nbsp;&nbsp;|&nbsp;&nbsp; Mn = As&middot;fy&middot;(d - a/2)
+            </div>
+            <div class="diagram-container">
+                <svg width="360" height="180" viewBox="0 0 360 180">
+                    <!-- beam cross section -->
+                    <rect x="80" y="10" width="100" height="160" fill="none" stroke="#2563eb" stroke-width="2"/>
+                    <!-- concrete fill -->
+                    <rect x="80" y="10" width="100" height="160" fill="#e0e7ff" opacity="0.5"/>
+                    <!-- rebar circles -->
+                    <circle cx="105" cy="145" r="6" fill="#ef4444"/>
+                    <circle cx="130" cy="145" r="6" fill="#ef4444"/>
+                    <circle cx="155" cy="145" r="6" fill="#ef4444"/>
+                    <!-- dimensions: b -->
+                    <line x1="80" y1="178" x2="180" y2="178" stroke="#64748b" stroke-width="1"/>
+                    <line x1="80" y1="174" x2="80" y2="178" stroke="#64748b" stroke-width="1"/>
+                    <line x1="180" y1="174" x2="180" y2="178" stroke="#64748b" stroke-width="1"/>
+                    <text x="130" y="176" text-anchor="middle" fill="#64748b" font-size="11">b</text>
+                    <!-- dimensions: h -->
+                    <line x1="72" y1="10" x2="72" y2="170" stroke="#64748b" stroke-width="1"/>
+                    <line x1="68" y1="10" x2="76" y2="10" stroke="#64748b" stroke-width="1"/>
+                    <line x1="68" y1="170" x2="76" y2="170" stroke="#64748b" stroke-width="1"/>
+                    <text x="64" y="94" text-anchor="middle" fill="#64748b" font-size="11" transform="rotate(-90,64,94)">h</text>
+                    <!-- dimensions: d -->
+                    <line x1="188" y1="10" x2="188" y2="145" stroke="#ef4444" stroke-width="1" stroke-dasharray="4"/>
+                    <line x1="184" y1="10" x2="192" y2="10" stroke="#ef4444" stroke-width="1"/>
+                    <line x1="184" y1="145" x2="192" y2="145" stroke="#ef4444" stroke-width="1"/>
+                    <text x="198" y="82" fill="#ef4444" font-size="11">d</text>
+                    <!-- stress block -->
+                    <rect x="230" y="10" width="60" height="50" fill="#3b82f6" opacity="0.3" stroke="#2563eb" stroke-width="1"/>
+                    <text x="260" y="38" text-anchor="middle" fill="#2563eb" font-size="10">0.85f'c</text>
+                    <text x="260" y="68" text-anchor="middle" fill="#2563eb" font-size="10">a</text>
+                    <!-- arrow a -->
+                    <line x1="295" y1="10" x2="295" y2="60" stroke="#2563eb" stroke-width="1"/>
+                    <polygon points="295,10 292,18 298,18" fill="#2563eb"/>
+                    <polygon points="295,60 292,52 298,52" fill="#2563eb"/>
+                    <!-- tension force -->
+                    <line x1="260" y1="145" x2="260" y2="145" stroke="#ef4444" stroke-width="1"/>
+                    <text x="260" y="150" text-anchor="middle" fill="#ef4444" font-size="10">As&middot;fy</text>
+                </svg>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>梁寬 b <span>(cm)</span></label>
+                    <input type="number" id="rc-b" value="30" step="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>梁深 h <span>(cm)</span></label>
+                    <input type="number" id="rc-h" value="60" step="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>有效深度 d <span>(cm)</span></label>
+                    <input type="number" id="rc-d" value="54" step="0.5" min="1">
+                </div>
+                <div class="form-group">
+                    <label>混凝土強度 f'c <span>(kgf/cm&sup2;)</span></label>
+                    <input type="number" id="rc-fc" value="280" step="10" min="1">
+                </div>
+                <div class="form-group">
+                    <label>鋼筋降伏強度 fy <span>(kgf/cm&sup2;)</span></label>
+                    <input type="number" id="rc-fy" value="4200" step="100" min="1">
+                </div>
+                <div class="form-group">
+                    <label>設計彎矩 Mu <span>(tf&middot;m)</span></label>
+                    <input type="number" id="rc-Mu" value="15" step="0.5" min="0">
+                </div>
+                <div class="form-group">
+                    <label>強度折減係數 &phi;</label>
+                    <input type="number" id="rc-phi" value="0.9" step="0.05" min="0.1" max="1">
+                </div>
+            </div>
+            <button class="btn" onclick="calcRCBeam()">設計計算</button>
+            <div class="result-box" id="result-rcbeam">
+                <h3>設計結果</h3>
+                <div id="result-rcbeam-content"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ==================== 單位換算 ==================== -->
     <div class="tab-content" id="tab-unit">
         <div class="card">
@@ -645,6 +730,13 @@ const fieldUnits = {
     // -- 鋼筋 --
     'rebar-len': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
 
+    // -- RC梁設計 --
+    'rc-b':  { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+    'rc-h':  { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+    'rc-d':  { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+    'rc-fc': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+    'rc-fy': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+    'rc-Mu': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'N\u00B7mm': 1.01972e-7, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
 };
 
 // 讀取數值並轉換到基準單位
@@ -841,6 +933,130 @@ function calcRebar() {
         ['\u55AE\u652F\u65B7\u9762\u7A4D', fmt(area, 1) + ' mm\u00B2'],
         ['\u7E3D\u9577\u5EA6 (\u542B\u642D\u63A5)', fmt(totalLen, 2) + ' m'],
         ['\u7E3D\u91CD\u91CF', fmt(totalWeight, 1) + ' kg (' + fmt(totalWeight / 1000, 3) + ' t)'],
+    ]);
+}
+
+// ===== RC梁撓曲設計 =====
+function calcRCBeam() {
+    // 所有計算以 kgf-cm 為基準
+    const b = valU('rc-b');    // cm
+    const h = valU('rc-h');    // cm
+    const d = valU('rc-d');    // cm
+    const fc = valU('rc-fc');  // kgf/cm²
+    const fy = valU('rc-fy');  // kgf/cm²
+    const Mu_tfm = valU('rc-Mu'); // tf·m
+    const phi = val('rc-phi');
+
+    // 轉換 Mu: tf·m → kgf·cm
+    const Mu = Mu_tfm * 1e5; // 1 tf·m = 100000 kgf·cm
+
+    // β1 係數 (ACI 318)
+    // f'c 以 MPa 判斷: 1 kgf/cm² = 0.0980665 MPa
+    const fc_MPa = fc * 0.0980665;
+    let beta1;
+    if (fc_MPa <= 28) {
+        beta1 = 0.85;
+    } else {
+        beta1 = 0.85 - 0.05 * (fc_MPa - 28) / 7;
+        if (beta1 < 0.65) beta1 = 0.65;
+    }
+
+    // 最大鋼筋比 (確保拉力控制, εt ≥ 0.005)
+    const rho_max = 0.85 * beta1 * (fc / fy) * (0.003 / (0.003 + 0.005));
+
+    // 最小鋼筋比 (ACI 318-14 §9.6.1.2)
+    const rho_min1 = 0.8 * Math.sqrt(fc_MPa) / (fy * 0.0980665);
+    const rho_min2 = 14 / fy;
+    const rho_min = Math.max(rho_min1, rho_min2);
+
+    // Rn 法求所需鋼筋量
+    const Mn_req = Mu / phi; // kgf·cm
+    const Rn = Mn_req / (b * d * d); // kgf/cm²
+
+    // 檢查是否超過單筋梁容量
+    const Rn_max = rho_max * fy * (1 - 0.59 * rho_max * fy / fc);
+
+    let rho_req, As_req, a, Mn_provided;
+    let status = '';
+    let isOverReinforced = false;
+
+    if (Rn > Rn_max) {
+        isOverReinforced = true;
+        rho_req = rho_max;
+        As_req = rho_max * b * d;
+        a = As_req * fy / (0.85 * fc * b);
+        Mn_provided = phi * As_req * fy * (d - a / 2);
+    } else {
+        // ρ = (0.85 f'c / fy) × (1 - √(1 - 2Rn / (0.85 f'c)))
+        const term = 2 * Rn / (0.85 * fc);
+        if (term >= 1) {
+            isOverReinforced = true;
+            rho_req = rho_max;
+        } else {
+            rho_req = (0.85 * fc / fy) * (1 - Math.sqrt(1 - term));
+        }
+        // 檢查最小鋼筋比
+        if (rho_req < rho_min) rho_req = rho_min;
+        As_req = rho_req * b * d;
+        a = As_req * fy / (0.85 * fc * b);
+        Mn_provided = phi * As_req * fy * (d - a / 2);
+    }
+
+    // c 值與淨拉應變
+    const c = a / beta1;
+    const epsilon_t = 0.003 * (d - c) / c;
+
+    // 判斷狀態
+    if (isOverReinforced) {
+        status = '\u26A0\uFE0F \u8D85\u904E\u55AE\u7B4B\u6881\u5BB9\u91CF\uFF0C\u9700\u63A1\u96D9\u7B4B\u6881\u6216\u52A0\u5927\u65B7\u9762';
+    } else if (epsilon_t >= 0.005) {
+        status = '\u2705 \u62C9\u529B\u63A7\u5236\u65B7\u9762 (\u03B5t \u2265 0.005)';
+    } else if (epsilon_t >= 0.004) {
+        status = '\u26A0\uFE0F \u904E\u6E21\u5340\u65B7\u9762 (0.004 \u2264 \u03B5t < 0.005)';
+    } else {
+        status = '\u274C \u58D3\u529B\u63A7\u5236\u65B7\u9762 (\u03B5t < 0.004)';
+    }
+
+    // 建議配筋
+    const rebarOptions = [
+        { no: '#4 (D13)', dia: 1.27, area: 1.267 },
+        { no: '#5 (D16)', dia: 1.59, area: 1.986 },
+        { no: '#6 (D19)', dia: 1.91, area: 2.865 },
+        { no: '#7 (D22)', dia: 2.22, area: 3.871 },
+        { no: '#8 (D25)', dia: 2.54, area: 5.067 },
+        { no: '#9 (D29)', dia: 2.87, area: 6.469 },
+        { no: '#10 (D32)', dia: 3.23, area: 8.143 },
+    ];
+    let suggestion = '';
+    for (const rb of rebarOptions) {
+        const nBars = Math.ceil(As_req / rb.area);
+        const totalAs = nBars * rb.area;
+        const clearWidth = b - 2 * 4 - 2 * 1.27; // 假設 4cm 保護層 + #4 箍筋
+        const spacing = nBars > 1 ? (clearWidth - nBars * rb.dia) / (nBars - 1) : clearWidth;
+        if (spacing >= 2.5 && nBars <= 8) {
+            suggestion = nBars + '-' + rb.no + ' (As=' + fmt(totalAs, 2) + ' cm\u00B2)';
+            break;
+        }
+    }
+    if (!suggestion) suggestion = '\u8ACB\u8ABF\u6574\u65B7\u9762\u6216\u63A1\u7528\u96D9\u5C64\u914D\u7B4B';
+
+    // 輸出結果 (以 tf·m 和 cm² 顯示)
+    const rMu = resultInSystem(Mu_tfm, 'tf\u00B7m', 'moment');
+    const rMn = resultInSystem(Mn_provided / 1e5, 'tf\u00B7m', 'moment');
+
+    showResult('rcbeam', [
+        ['\u8A2D\u8A08\u5F4E\u77E9 Mu', fmt(rMu.v, 2) + ' ' + rMu.u],
+        ['\u6240\u9700\u92FC\u7B4B\u91CF As', fmt(As_req, 2) + ' cm\u00B2'],
+        ['\u92FC\u7B4B\u6BD4 \u03C1', fmt(rho_req * 100, 3) + ' %'],
+        ['\u6700\u5C0F\u92FC\u7B4B\u6BD4 \u03C1min', fmt(rho_min * 100, 3) + ' %'],
+        ['\u6700\u5927\u92FC\u7B4B\u6BD4 \u03C1max', fmt(rho_max * 100, 3) + ' %'],
+        ['\u61C9\u529B\u584A\u6DF1\u5EA6 a', fmt(a, 2) + ' cm'],
+        ['\u4E2D\u6027\u8EF8\u6DF1\u5EA6 c', fmt(c, 2) + ' cm'],
+        ['\u6DE8\u62C9\u61C9\u8B8A \u03B5t', fmt(epsilon_t, 4)],
+        ['\u03B21', fmt(beta1, 3)],
+        ['\u63D0\u4F9B\u5F4E\u77E9 \u03C6Mn', fmt(rMn.v, 2) + ' ' + rMn.u],
+        ['\u5EFA\u8B70\u914D\u7B4B', suggestion],
+        ['\u65B7\u9762\u72C0\u614B', status],
     ]);
 }
 
