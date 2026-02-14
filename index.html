@@ -1851,8 +1851,13 @@ function calcRCColumn() {
     const pcX = totalForce !== 0 ? (concMx + steelMx) / totalForce : 0;
     const pcY = totalForce !== 0 ? (concMy + steelMy) / totalForce : 0;
 
-    // 離心力方位角 α: Muy→X方向離心, Mux→Y方向離心
-    const alpha = Math.atan2(Mux, Muy) * 180 / Math.PI;
+    // 偏心距: ex = Muy/Pu, ey = -Mux/Pu
+    const Pu = parseFloat(document.getElementById('rcc-Pu').value) || 0;
+    const ex = Pu !== 0 ? Muy / Pu : 0;
+    const ey = Pu !== 0 ? -Mux / Pu : 0;
+
+    // 離心力方位角 α = atan2(ey, ex) = atan2(-Mux, Muy)
+    const alpha = Math.atan2(-Mux, Muy) * 180 / Math.PI;
 
     // 儲存供預覽繪圖使用
     rcColData.pcX = pcX;
@@ -1870,6 +1875,8 @@ function calcRCColumn() {
         ['鋼筋根數', rebars.length + ' 根'],
         ['塑性中心 Xpc', fmt(pcX, 2) + ' cm'],
         ['塑性中心 Ypc', fmt(pcY, 2) + ' cm'],
+        ['偏心距 ex', fmt(ex, 2) + ' cm'],
+        ['偏心距 ey', fmt(ey, 2) + ' cm'],
         ['離心力方位角 α', fmt(alpha, 2) + ' °'],
     ]);
 }
