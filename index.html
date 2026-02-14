@@ -709,7 +709,7 @@
                 <h3>A. 斷面幾何</h3>
                 <div class="inline-controls">
                     <label style="font-size:0.85rem;font-weight:600;">預設形狀：</label>
-                    <select id="rcc-preset" onchange="applyPresetShape(this.value)" style="padding:0.4rem 0.6rem;border:2px solid var(--border);border-radius:6px;font-size:0.85rem;">
+                    <select id="rcc-preset" onchange="onPresetChange(this.value)" style="padding:0.4rem 0.6rem;border:2px solid var(--border);border-radius:6px;font-size:0.85rem;">
                         <option value="">-- 自選 --</option>
                         <option value="rect">矩形</option>
                         <option value="circle">圓形</option>
@@ -717,6 +717,9 @@
                         <option value="lshape">L型</option>
                     </select>
                 </div>
+
+                <!-- 參數化輸入 -->
+                <div id="rcc-shape-params" class="form-grid" style="margin:0.5rem 0;display:none;"></div>
 
                 <!-- 外輪廓 -->
                 <p style="font-size:0.9rem;font-weight:600;margin:0.5rem 0 0.25rem;">外輪廓頂點 (cm)</p>
@@ -1410,47 +1413,85 @@ function removeRebar() {
     }
 }
 
+function onPresetChange(type) {
+    const paramsDiv = document.getElementById('rcc-shape-params');
+    if (!type) {
+        paramsDiv.style.display = 'none';
+        paramsDiv.innerHTML = '';
+        return;
+    }
+    const paramDefs = {
+        rect:   [{ id:'rcc-p-B', label:'B (寬)', val:50 }, { id:'rcc-p-H', label:'H (高)', val:60 }],
+        circle: [{ id:'rcc-p-R', label:'R (半徑)', val:30 }],
+        tshape: [{ id:'rcc-p-Bf', label:'Bf (翼寬)', val:80 }, { id:'rcc-p-tf', label:'tf (翼厚)', val:15 },
+                 { id:'rcc-p-Bw', label:'Bw (腹寬)', val:30 }, { id:'rcc-p-H', label:'H (總高)', val:60 }],
+        lshape: [{ id:'rcc-p-Bx', label:'Bx (水平)', val:60 }, { id:'rcc-p-By', label:'By (垂直)', val:60 },
+                 { id:'rcc-p-tx', label:'tx (水平厚)', val:20 }, { id:'rcc-p-ty', label:'ty (垂直厚)', val:20 }],
+    };
+    const defs = paramDefs[type] || [];
+    paramsDiv.innerHTML = defs.map(d =>
+        `<div class="form-group"><label>${d.label} <span>(cm)</span></label><input type="number" id="${d.id}" value="${d.val}" step="1" min="1" onchange="applyPresetShape('${type}')"></div>`
+    ).join('');
+    paramsDiv.style.display = 'grid';
+    applyPresetShape(type);
+}
+
 function applyPresetShape(type) {
     if (!type) return;
     rcColData.hollow = [];
     switch (type) {
-        case 'rect':
+        case 'rect': {
+            const B = parseFloat(document.getElementById('rcc-p-B').value) || 50;
+            const H = parseFloat(document.getElementById('rcc-p-H').value) || 60;
             rcColData.outer = [
-                { x: 0, y: 0 }, { x: 50, y: 0 },
-                { x: 50, y: 60 }, { x: 0, y: 60 }
+                { x: 0, y: 0 }, { x: B, y: 0 },
+                { x: B, y: H }, { x: 0, y: H }
             ];
             break;
+        }
         case 'circle': {
-            const cx = 30, cy = 30, r = 30, n = 24;
+            const r = parseFloat(document.getElementById('rcc-p-R').value) || 30;
+            const nPts = 24;
             rcColData.outer = [];
-            for (let i = 0; i < n; i++) {
-                const ang = (2 * Math.PI * i) / n;
+            for (let i = 0; i < nPts; i++) {
+                const ang = (2 * Math.PI * i) / nPts;
                 rcColData.outer.push({
-                    x: parseFloat((cx + r * Math.cos(ang)).toFixed(2)),
-                    y: parseFloat((cy + r * Math.sin(ang)).toFixed(2))
+                    x: parseFloat((r + r * Math.cos(ang)).toFixed(2)),
+                    y: parseFloat((r + r * Math.sin(ang)).toFixed(2))
                 });
             }
             break;
         }
-        case 'tshape':
+        case 'tshape': {
+            const Bf = parseFloat(document.getElementById('rcc-p-Bf').value) || 80;
+            const tf = parseFloat(document.getElementById('rcc-p-tf').value) || 15;
+            const Bw = parseFloat(document.getElementById('rcc-p-Bw').value) || 30;
+            const H  = parseFloat(document.getElementById('rcc-p-H').value)  || 60;
+            const x1 = (Bf - Bw) / 2;
+            const x2 = x1 + Bw;
             rcColData.outer = [
-                { x: 0, y: 0 }, { x: 80, y: 0 },
-                { x: 80, y: 15 }, { x: 55, y: 15 },
-                { x: 55, y: 60 }, { x: 25, y: 60 },
-                { x: 25, y: 15 }, { x: 0, y: 15 }
+                { x: 0, y: 0 }, { x: Bf, y: 0 },
+                { x: Bf, y: tf }, { x: x2, y: tf },
+                { x: x2, y: H }, { x: x1, y: H },
+                { x: x1, y: tf }, { x: 0, y: tf }
             ];
             break;
-        case 'lshape':
+        }
+        case 'lshape': {
+            const Bx = parseFloat(document.getElementById('rcc-p-Bx').value) || 60;
+            const By = parseFloat(document.getElementById('rcc-p-By').value) || 60;
+            const tx = parseFloat(document.getElementById('rcc-p-tx').value) || 20;
+            const ty = parseFloat(document.getElementById('rcc-p-ty').value) || 20;
             rcColData.outer = [
-                { x: 0, y: 0 }, { x: 60, y: 0 },
-                { x: 60, y: 20 }, { x: 20, y: 20 },
-                { x: 20, y: 60 }, { x: 0, y: 60 }
+                { x: 0, y: 0 }, { x: Bx, y: 0 },
+                { x: Bx, y: tx }, { x: ty, y: tx },
+                { x: ty, y: By }, { x: 0, y: By }
             ];
             break;
+        }
     }
     renderOuterTable();
     renderHollowTable();
-    document.getElementById('rcc-preset').value = '';
 }
 
 function autoArrangeRebar() {
@@ -1663,7 +1704,8 @@ function calcRCColumn() {
 
 // 初始化預設矩形斷面
 function initRCColumn() {
-    applyPresetShape('rect');
+    document.getElementById('rcc-preset').value = 'rect';
+    onPresetChange('rect');
 }
 
 // ===== 單位換算 =====
