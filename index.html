@@ -1752,50 +1752,92 @@ function drawRCColPreview() {
     svg.innerHTML = html;
 }
 
+// 多邊形面積與重心 (Shoelace formula)
+function polyProps(pts) {
+    const n = pts.length;
+    if (n < 3) return { area: 0, cx: 0, cy: 0 };
+    let A = 0, Sx = 0, Sy = 0;
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const cross = pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+        A += cross;
+        Sx += (pts[i].x + pts[j].x) * cross;
+        Sy += (pts[i].y + pts[j].y) * cross;
+    }
+    A /= 2; // signed area
+    const area = Math.abs(A);
+    if (area === 0) return { area: 0, cx: 0, cy: 0 };
+    return { area, cx: Sx / (6 * A), cy: Sy / (6 * A) };
+}
+
 function calcRCColumn() {
-    // Placeholder - 計算核心由使用者後續提供
     const outer = rcColData.outer;
     if (outer.length < 3) {
         alert('請輸入至少 3 個外輪廓頂點');
         return;
     }
 
-    // 計算基本斷面性質 (Shoelace formula)
-    let areaGross = 0;
-    for (let i = 0; i < outer.length; i++) {
-        const j = (i + 1) % outer.length;
-        areaGross += outer[i].x * outer[j].y - outer[j].x * outer[i].y;
-    }
-    areaGross = Math.abs(areaGross) / 2;
+    const fc = parseFloat(document.getElementById('rcc-fc').value) || 280;
+    const fy = parseFloat(document.getElementById('rcc-fy').value) || 4200;
+    const Mux = parseFloat(document.getElementById('rcc-Mux').value) || 0;
+    const Muy = parseFloat(document.getElementById('rcc-Muy').value) || 0;
 
-    // 扣除空心面積
-    let areaHollow = 0;
+    // 外輪廓面積與重心
+    const outerP = polyProps(outer);
+    const areaGross = outerP.area;
+
+    // 空心面積與重心
     const hollow = rcColData.hollow;
-    if (hollow.length >= 3) {
-        for (let i = 0; i < hollow.length; i++) {
-            const j = (i + 1) % hollow.length;
-            areaHollow += hollow[i].x * hollow[j].y - hollow[j].x * hollow[i].y;
-        }
-        areaHollow = Math.abs(areaHollow) / 2;
-    }
+    const hollowP = polyProps(hollow);
+    const areaHollow = hollowP.area;
 
-    const areaNet = areaGross - areaHollow;
+    // 淨混凝土面積 (扣除空心與鋼筋)
     const rebars = rcColData.rebars;
     let totalAs = 0;
+    rebars.forEach(rb => { totalAs += rb.area || (rebarInfo[rb.no] || rebarInfo[8]).area; });
+
+    const areaNet = areaGross - areaHollow;
+    const Ac = areaNet - totalAs; // 混凝土淨面積
+    const rhoG = totalAs / areaNet * 100;
+
+    // 塑性中心 (Plastic centroid)
+    // 混凝土貢獻: 0.85*f'c * (Ag - Ahollow), 力矩用各區域幾何重心
+    const concForce = 0.85 * fc * areaNet;
+    let concMx = 0.85 * fc * areaGross * outerP.cx;
+    let concMy = 0.85 * fc * areaGross * outerP.cy;
+    if (areaHollow > 0) {
+        concMx -= 0.85 * fc * areaHollow * hollowP.cx;
+        concMy -= 0.85 * fc * areaHollow * hollowP.cy;
+    }
+
+    // 鋼筋貢獻: fy * As_i
+    let steelForce = 0, steelMx = 0, steelMy = 0;
     rebars.forEach(rb => {
-        totalAs += rb.area || (rebarInfo[rb.no] || rebarInfo[8]).area;
+        const as = rb.area || (rebarInfo[rb.no] || rebarInfo[8]).area;
+        const f = fy * as;
+        steelForce += f;
+        steelMx += f * rb.x;
+        steelMy += f * rb.y;
     });
 
-    const rhoG = totalAs / areaNet * 100;
+    const totalForce = concForce + steelForce;
+    const pcX = totalForce !== 0 ? (concMx + steelMx) / totalForce : 0;
+    const pcY = totalForce !== 0 ? (concMy + steelMy) / totalForce : 0;
+
+    // 離心力方位角 α (以塑性中心為原點, Mux 對應 X 軸, Muy 對應 Y 軸)
+    const alpha = Math.atan2(Muy, Mux) * 180 / Math.PI;
 
     showResult('rccolumn', [
         ['毛斷面積 Ag', fmt(areaGross, 2) + ' cm²'],
         ['空心面積', fmt(areaHollow, 2) + ' cm²'],
-        ['淨斷面積', fmt(areaNet, 2) + ' cm²'],
+        ['淨斷面積 (Ag-Ah)', fmt(areaNet, 2) + ' cm²'],
+        ['混凝土淨面積 Ac', fmt(Ac, 2) + ' cm²'],
         ['總鋼筋面積 Ast', fmt(totalAs, 2) + ' cm²'],
         ['鋼筋比 ρg', fmt(rhoG, 2) + ' %'],
         ['鋼筋根數', rebars.length + ' 根'],
-        ['P-Mx-My 計算', '⏳ 計算核心待提供'],
+        ['塑性中心 Xpc', fmt(pcX, 2) + ' cm'],
+        ['塑性中心 Ypc', fmt(pcY, 2) + ' cm'],
+        ['離心力方位角 α', fmt(alpha, 2) + ' °'],
     ]);
 }
 
