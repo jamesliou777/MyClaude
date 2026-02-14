@@ -1851,8 +1851,8 @@ function calcRCColumn() {
     const pcX = totalForce !== 0 ? (concMx + steelMx) / totalForce : 0;
     const pcY = totalForce !== 0 ? (concMy + steelMy) / totalForce : 0;
 
-    // 離心力方位角 α (以塑性中心為原點, Mux 對應 X 軸, Muy 對應 Y 軸)
-    const alpha = Math.atan2(Muy, Mux) * 180 / Math.PI;
+    // 離心力方位角 α: Muy→X方向離心, Mux→Y方向離心
+    const alpha = Math.atan2(Mux, Muy) * 180 / Math.PI;
 
     // 儲存供預覽繪圖使用
     rcColData.pcX = pcX;
