@@ -733,14 +733,26 @@
                 </div>
 
                 <!-- 空心輪廓 -->
-                <p style="font-size:0.9rem;font-weight:600;margin:0.75rem 0 0.25rem;">空心區域頂點 (cm)（可選）</p>
-                <table class="coord-table" id="rcc-hollow-table">
-                    <thead><tr><th>#</th><th>X</th><th>Y</th></tr></thead>
-                    <tbody id="rcc-hollow-body"></tbody>
-                </table>
-                <div>
-                    <button class="btn-sm btn-sm-primary" onclick="addHollowPt()">+ 新增點</button>
-                    <button class="btn-sm btn-sm-danger" onclick="removeHollowPt()">- 刪除最後一點</button>
+                <div class="inline-controls" style="margin-top:0.75rem;">
+                    <label style="font-size:0.85rem;font-weight:600;">空心類型：</label>
+                    <select id="rcc-hollow-preset" onchange="onHollowPresetChange(this.value)" style="padding:0.4rem 0.6rem;border:2px solid var(--border);border-radius:6px;font-size:0.85rem;">
+                        <option value="none">無空心</option>
+                        <option value="rect">空心矩形</option>
+                        <option value="circle">空心圓形</option>
+                        <option value="custom">自訂頂點</option>
+                    </select>
+                </div>
+                <div id="rcc-hollow-params" class="form-grid" style="margin:0.5rem 0;display:none;"></div>
+                <div id="rcc-hollow-custom" style="display:none;">
+                    <p style="font-size:0.9rem;font-weight:600;margin:0.5rem 0 0.25rem;">空心區域頂點 (cm)</p>
+                    <table class="coord-table" id="rcc-hollow-table">
+                        <thead><tr><th>#</th><th>X</th><th>Y</th></tr></thead>
+                        <tbody id="rcc-hollow-body"></tbody>
+                    </table>
+                    <div>
+                        <button class="btn-sm btn-sm-primary" onclick="addHollowPt()">+ 新增點</button>
+                        <button class="btn-sm btn-sm-danger" onclick="removeHollowPt()">- 刪除最後一點</button>
+                    </div>
                 </div>
             </div>
 
@@ -1353,6 +1365,70 @@ function renderHollowTable() {
         `<tr><td>${i + 1}</td><td><input type="number" value="${pt.x}" step="1" onchange="rcColData.hollow[${i}].x=parseFloat(this.value)||0;drawRCColPreview()"></td><td><input type="number" value="${pt.y}" step="1" onchange="rcColData.hollow[${i}].y=parseFloat(this.value)||0;drawRCColPreview()"></td></tr>`
     ).join('');
     drawRCColPreview();
+}
+
+function onHollowPresetChange(type) {
+    const paramsDiv = document.getElementById('rcc-hollow-params');
+    const customDiv = document.getElementById('rcc-hollow-custom');
+    if (type === 'none') {
+        paramsDiv.style.display = 'none';
+        paramsDiv.innerHTML = '';
+        customDiv.style.display = 'none';
+        rcColData.hollow = [];
+        renderHollowTable();
+        return;
+    }
+    if (type === 'custom') {
+        paramsDiv.style.display = 'none';
+        paramsDiv.innerHTML = '';
+        customDiv.style.display = 'block';
+        return;
+    }
+    customDiv.style.display = 'none';
+    const paramDefs = {
+        rect:   [{ id:'rcc-hp-Bh', label:'Bh (寬)', val:20 }, { id:'rcc-hp-Hh', label:'Hh (高)', val:30 },
+                 { id:'rcc-hp-Cx', label:'Cx (中心X)', val:25 }, { id:'rcc-hp-Cy', label:'Cy (中心Y)', val:30 }],
+        circle: [{ id:'rcc-hp-Rh', label:'Rh (半徑)', val:15 },
+                 { id:'rcc-hp-Cx', label:'Cx (中心X)', val:25 }, { id:'rcc-hp-Cy', label:'Cy (中心Y)', val:30 }],
+    };
+    const defs = paramDefs[type] || [];
+    paramsDiv.innerHTML = defs.map(d =>
+        `<div class="form-group"><label>${d.label} <span>(cm)</span></label><input type="number" id="${d.id}" value="${d.val}" step="1" min="0" onchange="applyHollowShape('${type}')"></div>`
+    ).join('');
+    paramsDiv.style.display = 'grid';
+    applyHollowShape(type);
+}
+
+function applyHollowShape(type) {
+    switch (type) {
+        case 'rect': {
+            const Bh = parseFloat(document.getElementById('rcc-hp-Bh').value) || 20;
+            const Hh = parseFloat(document.getElementById('rcc-hp-Hh').value) || 30;
+            const cx = parseFloat(document.getElementById('rcc-hp-Cx').value) || 25;
+            const cy = parseFloat(document.getElementById('rcc-hp-Cy').value) || 30;
+            rcColData.hollow = [
+                { x: cx - Bh/2, y: cy - Hh/2 }, { x: cx + Bh/2, y: cy - Hh/2 },
+                { x: cx + Bh/2, y: cy + Hh/2 }, { x: cx - Bh/2, y: cy + Hh/2 }
+            ];
+            break;
+        }
+        case 'circle': {
+            const rh = parseFloat(document.getElementById('rcc-hp-Rh').value) || 15;
+            const cx = parseFloat(document.getElementById('rcc-hp-Cx').value) || 25;
+            const cy = parseFloat(document.getElementById('rcc-hp-Cy').value) || 30;
+            const nPts = 24;
+            rcColData.hollow = [];
+            for (let i = 0; i < nPts; i++) {
+                const ang = (2 * Math.PI * i) / nPts;
+                rcColData.hollow.push({
+                    x: parseFloat((cx + rh * Math.cos(ang)).toFixed(2)),
+                    y: parseFloat((cy + rh * Math.sin(ang)).toFixed(2))
+                });
+            }
+            break;
+        }
+    }
+    renderHollowTable();
 }
 
 function renderRebarTable() {
