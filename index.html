@@ -1460,23 +1460,58 @@ function autoArrangeRebar() {
     const spacing = parseFloat(document.getElementById('rcc-spacing').value) || 15;
     const barArea = parseFloat(document.getElementById('rcc-barArea').value) || 5.07;
 
-    // Compute centroid
-    let cx = 0, cy = 0;
-    pts.forEach(p => { cx += p.x; cy += p.y; });
-    cx /= pts.length; cy /= pts.length;
+    // Inward offset polygon: move each edge inward by cover along its normal,
+    // then intersect adjacent offset edges to get new vertices.
+    const n = pts.length;
 
-    // Offset each edge inward by cover distance, then place rebars at offset polygon vertices
-    // Simplified: shrink polygon toward centroid by cover
-    const offsetPts = pts.map(p => {
-        const dx = p.x - cx, dy = p.y - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist === 0) return { x: p.x, y: p.y };
-        const scale = Math.max(0, (dist - cover)) / dist;
-        return {
-            x: parseFloat((cx + dx * scale).toFixed(2)),
-            y: parseFloat((cy + dy * scale).toFixed(2))
-        };
-    });
+    // Compute inward unit normal for each edge (assumes CCW winding; auto-detect)
+    // Check winding via signed area
+    let signedArea2 = 0;
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        signedArea2 += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    const windingSign = signedArea2 >= 0 ? 1 : -1; // +1 if CCW, -1 if CW
+
+    // For each edge i→i+1, compute offset line (point + direction)
+    const edges = [];
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const ex = pts[j].x - pts[i].x;
+        const ey = pts[j].y - pts[i].y;
+        const len = Math.sqrt(ex * ex + ey * ey);
+        if (len === 0) { edges.push(null); continue; }
+        // Inward normal: for CCW polygon, inward normal of edge (ex,ey) is (-ey,ex) normalized
+        const nx = windingSign * (-ey) / len;
+        const ny = windingSign * ex / len;
+        // Offset line: shift edge start/end by cover * normal
+        edges.push({
+            px: pts[i].x + nx * cover, py: pts[i].y + ny * cover,
+            dx: ex, dy: ey
+        });
+    }
+
+    // Intersect adjacent offset edges to get offset polygon vertices
+    function lineIntersect(e1, e2) {
+        // e1: point (px,py) + t*(dx,dy), e2: point (px,py) + s*(dx,dy)
+        const det = e1.dx * e2.dy - e1.dy * e2.dx;
+        if (Math.abs(det) < 1e-10) return null; // parallel
+        const t = ((e2.px - e1.px) * e2.dy - (e2.py - e1.py) * e2.dx) / det;
+        return { x: e1.px + t * e1.dx, y: e1.py + t * e1.dy };
+    }
+
+    const offsetPts = [];
+    for (let i = 0; i < n; i++) {
+        const prev = (i - 1 + n) % n;
+        const e1 = edges[prev], e2 = edges[i];
+        if (!e1 || !e2) { offsetPts.push({ x: pts[i].x, y: pts[i].y }); continue; }
+        const pt = lineIntersect(e1, e2);
+        if (!pt) { offsetPts.push({ x: pts[i].x, y: pts[i].y }); continue; }
+        offsetPts.push({
+            x: parseFloat(pt.x.toFixed(2)),
+            y: parseFloat(pt.y.toFixed(2))
+        });
+    }
 
     // Place rebars at offset vertices + midpoints of longer edges
     rcColData.rebars = [];
