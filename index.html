@@ -837,8 +837,21 @@
                         <input type="number" id="rcc-phi" value="0.65" step="0.05" min="0.1" max="1">
                     </div>
                     <div class="form-group">
-                        <label>鋼筋中心至混凝土外緣距離 <span>(cm)</span></label>
-                        <input type="number" id="rcc-cover" value="4" step="0.5" min="1">
+                        <label>保護層厚度 ic <span>(cm)</span></label>
+                        <input type="number" id="rcc-ic" value="4" step="0.5" min="1" onchange="updateCover()">
+                    </div>
+                    <div class="form-group">
+                        <label>箍筋號數</label>
+                        <select id="rcc-stirrup" onchange="updateCover()">
+                            <option value="3">#3 (D10)</option>
+                            <option value="4" selected>#4 (D13)</option>
+                            <option value="5">#5 (D16)</option>
+                            <option value="6">#6 (D19)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>鋼筋中心至外緣 <span>(cm)</span></label>
+                        <input type="number" id="rcc-cover" value="5.27" step="0.01" readonly style="background:#f1f5f9;">
                     </div>
                 </div>
             </div>
@@ -999,7 +1012,7 @@ const fieldUnits = {
     'rcc-Pu':  { dflt: 'tf', dim: 'force', units: { 'tf': 1, 'kN': 0.101972, 'kgf': 1e3, 'N': 0.000101972, 'lbf': 0.000453592 } },
     'rcc-Mux': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
     'rcc-Muy': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
-    'rcc-cover': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+    'rcc-ic': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
     'rcc-spacing': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
     'rcc-barArea': { dflt: 'cm²', dim: 'area', units: { 'cm²': 1, 'mm²': 0.01, 'in²': 6.4516 } },
 };
@@ -1489,6 +1502,14 @@ function removeRebar() {
     }
 }
 
+function updateCover() {
+    const ic = parseFloat(document.getElementById('rcc-ic').value) || 4;
+    const stirrupNo = parseInt(document.getElementById('rcc-stirrup').value) || 4;
+    const db = rebarInfo[stirrupNo] ? rebarInfo[stirrupNo].dia : rebarInfo[4].dia;
+    const cover = parseFloat((ic + db).toFixed(2));
+    document.getElementById('rcc-cover').value = cover;
+}
+
 function onPresetChange(type) {
     const paramsDiv = document.getElementById('rcc-shape-params');
     if (!type) {
@@ -1782,6 +1803,7 @@ function calcRCColumn() {
 function initRCColumn() {
     document.getElementById('rcc-preset').value = 'rect';
     onPresetChange('rect');
+    updateCover();
 }
 
 // ===== 單位換算 =====
