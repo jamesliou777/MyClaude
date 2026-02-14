@@ -744,8 +744,18 @@
             <!-- B. 鋼筋配置 -->
             <div class="section-block">
                 <h3>B. 鋼筋配置</h3>
+                <div class="form-grid" style="margin-bottom:1rem;">
+                    <div class="form-group">
+                        <label>最小鋼筋間距 <span>(cm)</span></label>
+                        <input type="number" id="rcc-spacing" value="15" step="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>單支鋼筋面積 <span>(cm²)</span></label>
+                        <input type="number" id="rcc-barArea" value="5.07" step="0.01" min="0.1">
+                    </div>
+                </div>
                 <table class="coord-table" id="rcc-rebar-table">
-                    <thead><tr><th>#</th><th>X (cm)</th><th>Y (cm)</th><th>號數</th></tr></thead>
+                    <thead><tr><th>#</th><th>X (cm)</th><th>Y (cm)</th><th>號數</th><th>面積 (cm²)</th></tr></thead>
                     <tbody id="rcc-rebar-body"></tbody>
                 </table>
                 <div>
@@ -975,6 +985,8 @@ const fieldUnits = {
     'rcc-Mux': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
     'rcc-Muy': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
     'rcc-cover': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+    'rcc-spacing': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+    'rcc-barArea': { dflt: 'cm²', dim: 'area', units: { 'cm²': 1, 'mm²': 0.01, 'in²': 6.4516 } },
 };
 
 // 讀取數值並轉換到基準單位
@@ -1302,10 +1314,11 @@ function calcRCBeam() {
 const rcColData = {
     outer: [],   // [{x, y}, ...]
     hollow: [],  // [{x, y}, ...]
-    rebars: [],  // [{x, y, no}, ...]
+    rebars: [],  // [{x, y, no, area}, ...]
 };
 
 const rebarInfo = {
+    0: { dia: 2, area: 0, name: '自訂' },
     3: { dia: 0.953, area: 0.7133, name: '#3 (D10)' },
     4: { dia: 1.27,  area: 1.267,  name: '#4 (D13)' },
     5: { dia: 1.59,  area: 1.986,  name: '#5 (D16)' },
@@ -1341,10 +1354,23 @@ function renderHollowTable() {
 
 function renderRebarTable() {
     const tbody = document.getElementById('rcc-rebar-body');
-    tbody.innerHTML = rcColData.rebars.map((rb, i) =>
-        `<tr><td>${i + 1}</td><td><input type="number" value="${rb.x}" step="0.5" onchange="rcColData.rebars[${i}].x=parseFloat(this.value)||0;drawRCColPreview()"></td><td><input type="number" value="${rb.y}" step="0.5" onchange="rcColData.rebars[${i}].y=parseFloat(this.value)||0;drawRCColPreview()"></td><td><select onchange="rcColData.rebars[${i}].no=parseInt(this.value);drawRCColPreview()">${rebarSelectHTML(rb.no)}</select></td></tr>`
-    ).join('');
+    tbody.innerHTML = rcColData.rebars.map((rb, i) => {
+        const isCustom = rb.no === 0;
+        const areaCell = isCustom
+            ? `<input type="number" value="${rb.area}" step="0.01" min="0" style="width:70px" onchange="rcColData.rebars[${i}].area=parseFloat(this.value)||0;drawRCColPreview()">`
+            : `<span>${rebarInfo[rb.no].area}</span>`;
+        return `<tr><td>${i + 1}</td><td><input type="number" value="${rb.x}" step="0.5" onchange="rcColData.rebars[${i}].x=parseFloat(this.value)||0;drawRCColPreview()"></td><td><input type="number" value="${rb.y}" step="0.5" onchange="rcColData.rebars[${i}].y=parseFloat(this.value)||0;drawRCColPreview()"></td><td><select onchange="onRebarNoChange(${i},this.value)">${rebarSelectHTML(rb.no)}</select></td><td>${areaCell}</td></tr>`;
+    }).join('');
     drawRCColPreview();
+}
+
+function onRebarNoChange(idx, val) {
+    const no = parseInt(val);
+    rcColData.rebars[idx].no = no;
+    if (no !== 0) {
+        rcColData.rebars[idx].area = rebarInfo[no].area;
+    }
+    renderRebarTable();
 }
 
 function addOuterPt() {
@@ -1373,7 +1399,7 @@ function removeHollowPt() {
 }
 
 function addRebar() {
-    rcColData.rebars.push({ x: 0, y: 0, no: 8 });
+    rcColData.rebars.push({ x: 0, y: 0, no: 8, area: rebarInfo[8].area });
     renderRebarTable();
 }
 
@@ -1431,6 +1457,8 @@ function autoArrangeRebar() {
     const pts = rcColData.outer;
     if (pts.length < 3) return;
     const cover = parseFloat(document.getElementById('rcc-cover').value) || 4;
+    const spacing = parseFloat(document.getElementById('rcc-spacing').value) || 15;
+    const barArea = parseFloat(document.getElementById('rcc-barArea').value) || 5.07;
 
     // Compute centroid
     let cx = 0, cy = 0;
@@ -1453,18 +1481,18 @@ function autoArrangeRebar() {
     // Place rebars at offset vertices + midpoints of longer edges
     rcColData.rebars = [];
     for (let i = 0; i < offsetPts.length; i++) {
-        rcColData.rebars.push({ x: offsetPts[i].x, y: offsetPts[i].y, no: 8 });
+        rcColData.rebars.push({ x: offsetPts[i].x, y: offsetPts[i].y, no: 0, area: barArea });
         const j = (i + 1) % offsetPts.length;
         const dx = offsetPts[j].x - offsetPts[i].x;
         const dy = offsetPts[j].y - offsetPts[i].y;
         const edgeLen = Math.sqrt(dx * dx + dy * dy);
-        // Add intermediate rebars if edge > 20cm
-        const nSeg = Math.floor(edgeLen / 15);
+        const nSeg = Math.floor(edgeLen / spacing);
         for (let k = 1; k < nSeg; k++) {
             rcColData.rebars.push({
                 x: parseFloat((offsetPts[i].x + dx * k / nSeg).toFixed(2)),
                 y: parseFloat((offsetPts[i].y + dy * k / nSeg).toFixed(2)),
-                no: 8
+                no: 0,
+                area: barArea
             });
         }
     }
@@ -1537,7 +1565,8 @@ function drawRCColPreview() {
         const info = rebarInfo[rb.no] || rebarInfo[8];
         const r = Math.max(3, info.dia * scale / 2);
         html += `<circle cx="${sx}" cy="${sy}" r="${Math.min(r, 8)}" fill="#ef4444" stroke="#b91c1c" stroke-width="1"/>`;
-        html += `<text x="${sx + 6}" y="${sy + 3}" fill="#b91c1c" font-size="8">${info.name.split(' ')[0]}</text>`;
+        const label = rb.no === 0 ? '自訂' : info.name.split(' ')[0];
+        html += `<text x="${sx + 6}" y="${sy + 3}" fill="#b91c1c" font-size="8">${label}</text>`;
     });
 
     // Axes label
@@ -1581,8 +1610,7 @@ function calcRCColumn() {
     const rebars = rcColData.rebars;
     let totalAs = 0;
     rebars.forEach(rb => {
-        const info = rebarInfo[rb.no] || rebarInfo[8];
-        totalAs += info.area;
+        totalAs += rb.area || (rebarInfo[rb.no] || rebarInfo[8]).area;
     });
 
     const rhoG = totalAs / areaNet * 100;
