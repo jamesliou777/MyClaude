@@ -1343,6 +1343,7 @@ const rcColData = {
     outer: [],   // [{x, y}, ...]
     hollow: [],  // [{x, y}, ...]
     rebars: [],  // [{x, y, no, area}, ...]
+    pcX: null, pcY: null, alpha: null,  // 塑性中心與方位角 (計算後填入)
 };
 
 const rebarInfo = {
@@ -1742,6 +1743,32 @@ function drawRCColPreview() {
         html += `<text x="${sx + 6}" y="${sy + 3}" fill="#b91c1c" font-size="8">${label}</text>`;
     });
 
+    // 塑性中心與方位角
+    if (rcColData.pcX !== null && rcColData.pcY !== null) {
+        const pcSx = tx(rcColData.pcX), pcSy = ty(rcColData.pcY);
+        // 塑性中心十字標記
+        html += `<line x1="${pcSx-6}" y1="${pcSy}" x2="${pcSx+6}" y2="${pcSy}" stroke="#16a34a" stroke-width="2"/>`;
+        html += `<line x1="${pcSx}" y1="${pcSy-6}" x2="${pcSx}" y2="${pcSy+6}" stroke="#16a34a" stroke-width="2"/>`;
+        html += `<circle cx="${pcSx}" cy="${pcSy}" r="4" fill="none" stroke="#16a34a" stroke-width="1.5"/>`;
+        html += `<text x="${pcSx+8}" y="${pcSy-8}" fill="#16a34a" font-size="9" font-weight="bold">PC</text>`;
+
+        // 方位角箭頭
+        if (rcColData.alpha !== null) {
+            const alphaRad = rcColData.alpha * Math.PI / 180;
+            const arrowLen = 40;
+            // SVG Y 軸向下, 所以 dy 取負
+            const ax = pcSx + arrowLen * Math.cos(alphaRad);
+            const ay = pcSy - arrowLen * Math.sin(alphaRad);
+            html += `<line x1="${pcSx}" y1="${pcSy}" x2="${ax}" y2="${ay}" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrowAlpha)"/>`;
+            // 箭頭 marker 定義
+            html = `<defs><marker id="arrowAlpha" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#f59e0b"/></marker></defs>` + html;
+            // 角度標示
+            const labelX = pcSx + (arrowLen + 8) * Math.cos(alphaRad);
+            const labelY = pcSy - (arrowLen + 8) * Math.sin(alphaRad);
+            html += `<text x="${labelX}" y="${labelY}" fill="#f59e0b" font-size="10" font-weight="bold">α=${rcColData.alpha.toFixed(1)}°</text>`;
+        }
+    }
+
     // Axes label
     html += '<text x="10" y="395" fill="#94a3b8" font-size="10">單位: cm | Y↑ X→</text>';
 
@@ -1826,6 +1853,12 @@ function calcRCColumn() {
 
     // 離心力方位角 α (以塑性中心為原點, Mux 對應 X 軸, Muy 對應 Y 軸)
     const alpha = Math.atan2(Muy, Mux) * 180 / Math.PI;
+
+    // 儲存供預覽繪圖使用
+    rcColData.pcX = pcX;
+    rcColData.pcY = pcY;
+    rcColData.alpha = alpha;
+    drawRCColPreview();
 
     showResult('rccolumn', [
         ['毛斷面積 Ag', fmt(areaGross, 2) + ' cm²'],
