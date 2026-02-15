@@ -4,7 +4,7 @@
 - 單頁式工程計算器（`index.html`），部署於 GitHub Pages
 - GitHub 帳號：`jamesliou777`
 - 儲存庫：`MyClaude`，分支：`main`
-- 最新提交：`82d740f` - 修正離心力方位角符號慣例
+- 最新提交：`7cfe5fb` - 格式化 index.html CSS 樣式
 
 ## 架構
 - **單一 HTML 檔案**，內嵌 CSS 與 JS
@@ -72,3 +72,5 @@ A.斷面幾何 → B.鋼筋配置 → C.斷面預覽 → D.材料參數 → E.�
 - `0f777a8` 塑性中心與離心力方位角計算
 - `f712436` SVG 預覽顯示塑性中心與方位角箭頭
 - `82d740f` 修正離心力方位角符號慣例（α=atan2(-Mux,Muy)）
+- `8137671` 更新 CLAUDE.md：修正區段順序並同步文件
+- `7cfe5fb` 格式化 index.html CSS 樣式
