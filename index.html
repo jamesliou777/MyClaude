@@ -2471,31 +2471,80 @@
         }
 
         function isPointInsidePMCurve(curve, Pu_tf, Mu_tfm) {
-            // At the given Pu level, find the interpolated phiMn capacity
-            // The curve goes from small c (tension/low P) to large c (compression/high P)
-            // Find two adjacent points that bracket Pu
+            // Check if Pu is within the axial capacity range
+            const maxP = Math.max(...curve.map(c => c.phiPn_tf));
+            const minP = Math.min(...curve.map(c => c.phiPn_tf));
+            if (Pu_tf > maxP || Pu_tf < minP) return false;
+
+            // Collect maximum M capacity across ALL bracket intervals at Pu level
+            // (P-M curve is non-monotonic: P rises then falls, so multiple brackets may exist)
+            let maxMCapacity = -Infinity;
+            let foundBracket = false;
             for (let i = 0; i < curve.length - 1; i++) {
                 const p1 = curve[i].phiPn_tf, p2 = curve[i + 1].phiPn_tf;
                 const m1 = curve[i].phiMn_tfm, m2 = curve[i + 1].phiMn_tfm;
-                // Check if Pu is between p1 and p2 (the curve may not be monotonic in P)
                 if ((p1 <= Pu_tf && p2 >= Pu_tf) || (p1 >= Pu_tf && p2 <= Pu_tf)) {
                     if (Math.abs(p2 - p1) < 1e-10) continue;
                     const t = (Pu_tf - p1) / (p2 - p1);
                     const mCapacity = m1 + t * (m2 - m1);
-                    if (Mu_tfm <= mCapacity) return true;
+                    if (mCapacity > maxMCapacity) maxMCapacity = mCapacity;
+                    foundBracket = true;
                 }
             }
-            // Also check if Pu is within the axial capacity range
-            const maxP = Math.max(...curve.map(c => c.phiPn_tf));
-            const minP = Math.min(...curve.map(c => c.phiPn_tf));
-            if (Pu_tf > maxP || Pu_tf < minP) return false;
-            // If we couldn't find a bracket, use max M at closest P
+            if (foundBracket) return Mu_tfm <= maxMCapacity;
+
+            // Fallback: use max M at closest P
             let closestIdx = 0, closestDist = Infinity;
             curve.forEach((pt, i) => {
                 const d = Math.abs(pt.phiPn_tf - Pu_tf);
                 if (d < closestDist) { closestDist = d; closestIdx = i; }
             });
             return Mu_tfm <= curve[closestIdx].phiMn_tfm;
+        }
+
+        function interpolateSurfaceAtAngle(surface, angleDeg) {
+            // Normalize angle to [0, 360)
+            let a = ((angleDeg % 360) + 360) % 360;
+
+            // Find the two adjacent slices that bracket this angle
+            // Surface slices are at 0, 15, 30, ..., 345, 360 degrees
+            let loSlice = null, hiSlice = null;
+            for (let i = 0; i < surface.length - 1; i++) {
+                if (surface[i].angle <= a && surface[i + 1].angle >= a) {
+                    loSlice = surface[i];
+                    hiSlice = surface[i + 1];
+                    break;
+                }
+            }
+            if (!loSlice) {
+                // Exact match at 360 or fallback to closest
+                return surface[0].curve;
+            }
+
+            // If exact match, no interpolation needed
+            const span = hiSlice.angle - loSlice.angle;
+            if (span < 1e-10) return loSlice.curve;
+            const t = (a - loSlice.angle) / span;
+
+            // Interpolate point-by-point (both curves have the same number of points)
+            const len = Math.min(loSlice.curve.length, hiSlice.curve.length);
+            const result = [];
+            for (let i = 0; i < len; i++) {
+                const lo = loSlice.curve[i];
+                const hi = hiSlice.curve[i];
+                result.push({
+                    phiPn_tf: lo.phiPn_tf + t * (hi.phiPn_tf - lo.phiPn_tf),
+                    phiMn_tfm: lo.phiMn_tfm + t * (hi.phiMn_tfm - lo.phiMn_tfm),
+                    phiMnx_tfm: lo.phiMnx_tfm + t * (hi.phiMnx_tfm - lo.phiMnx_tfm),
+                    phiMny_tfm: lo.phiMny_tfm + t * (hi.phiMny_tfm - lo.phiMny_tfm),
+                    Pn_tf: lo.Pn_tf + t * (hi.Pn_tf - lo.Pn_tf),
+                    Mn_tfm: lo.Mn_tfm + t * (hi.Mn_tfm - lo.Mn_tfm),
+                    phi: lo.phi + t * (hi.phi - lo.phi),
+                    epsT: lo.epsT + t * (hi.epsT - lo.epsT),
+                    c: lo.c + t * (hi.c - lo.c)
+                });
+            }
+            return result;
         }
 
         function addLoadCase(Pu, Mux, Muy) {
@@ -2550,10 +2599,6 @@
             // 取得多筆載重組合
             const loadCases = getLoadCases();
 
-
-            const Mux0 = loadCases[0].Mux;
-            const Muy0 = loadCases[0].Muy;
-
             // 外輪廓面積與重心
             const outerP = polyProps(outer);
             const areaGross = outerP.area;
@@ -2594,13 +2639,13 @@
             const pcX = totalForce !== 0 ? (concMx + steelMx) / totalForce : 0;
             const pcY = totalForce !== 0 ? (concMy + steelMy) / totalForce : 0;
 
-            // 用第一筆載重計算 α 角
-            const alpha = Math.atan2(-Mux0, Muy0) * 180 / Math.PI;
+            // 用第一筆載重計算 α 角（供 SVG 預覽箭頭使用）
+            const alpha0 = Math.atan2(-loadCases[0].Mux, loadCases[0].Muy) * 180 / Math.PI;
 
             // 儲存供預覽繪圖使用
             rcColData.pcX = pcX;
             rcColData.pcY = pcY;
-            rcColData.alpha = alpha;
+            rcColData.alpha = alpha0;
             drawRCColPreview();
 
             const Es = parseFloat(document.getElementById('rcc-Es').value) || 2040000;
@@ -2618,21 +2663,27 @@
                 return;
             }
 
-            // P-M interaction curve
-            const alphaRad = alpha * Math.PI / 180;
             const rebarsResolved = rebars.map(rb => ({
                 x: rb.x, y: rb.y,
                 area: rb.area || (rebarInfo[rb.no] || rebarInfo[8]).area
             }));
 
-            const pmData = generatePMCurve(outer, hollow, rebarsResolved, fc, fy, Es, pcX, pcY, alphaRad);
+            // 先產生 3D 曲面（所有角度的 P-M 曲線），再逐筆載重內插檢核
+            const pmSurface = generate3DSurface(outer, hollow, rebarsResolved, fc, fy, Es, pcX, pcY);
 
-            // 逐筆載重計算
+            // 用第一筆載重的角度取得 pmData 供顯示基本數據
+            const alpha0Rad = alpha0 * Math.PI / 180;
+            const pmData = generatePMCurve(outer, hollow, rebarsResolved, fc, fy, Es, pcX, pcY, alpha0Rad);
+
+            // 逐筆載重計算：每筆使用自己的 α 角，從 3D 曲面內插對應 P-M 曲線
             const loadPoints = loadCases.map((lc, i) => {
+                const lcAlpha = Math.atan2(-lc.Mux, lc.Muy) * 180 / Math.PI;
                 const Mu_tfm = Math.sqrt(lc.Mux * lc.Mux + lc.Muy * lc.Muy);
                 const Pu_tf = lc.Pu;
-                const safe = isPointInsidePMCurve(pmData.curve, Pu_tf, Mu_tfm);
-                return { idx: i + 1, Pu_tf, Mu_tfm, Mux: lc.Mux, Muy: lc.Muy, safe };
+                // 從 3D 曲面內插該角度的 P-M 曲線
+                const interpCurve = interpolateSurfaceAtAngle(pmSurface, lcAlpha);
+                const safe = isPointInsidePMCurve(interpCurve, Pu_tf, Mu_tfm);
+                return { idx: i + 1, Pu_tf, Mu_tfm, Mux: lc.Mux, Muy: lc.Muy, alpha: lcAlpha, safe };
             });
 
             // 結果表格
@@ -2646,7 +2697,6 @@
                 ['鋼筋根數', rebars.length + ' 根'],
                 ['塑性中心 Xpc', fmt(pcX, 2) + ' cm'],
                 ['塑性中心 Ypc', fmt(pcY, 2) + ' cm'],
-                ['離心力方位角 α', fmt(alpha, 2) + ' °'],
                 ['β₁', fmt(pmData.beta1, 4)],
                 ['純壓強度 Po', fmt(pmData.Po_tf, 2) + ' tf'],
                 ['φPo,max (0.80φPo)', fmt(pmData.phiPo_max_tf, 2) + ' tf'],
@@ -2659,15 +2709,13 @@
                 const status = lp.safe ? '✓ 安全' : '✗ 不安全';
                 const color = lp.safe ? '#16a34a' : '#ef4444';
                 resultRows.push([
-                    `#${lp.idx}: Pu=${fmt(lp.Pu_tf, 2)} tf, Mu=${fmt(lp.Mu_tfm, 2)} tf·m`,
+                    `#${lp.idx}: Pu=${fmt(lp.Pu_tf, 2)} tf, Mu=${fmt(lp.Mu_tfm, 2)} tf·m, α=${fmt(lp.alpha, 1)}°`,
                     `<span style="color:${color};font-weight:600">${status}</span>`
                 ]);
             });
 
             showResult('rccolumn', resultRows);
 
-            // 3D Surface Generation
-            const pmSurface = generate3DSurface(outer, hollow, rebarsResolved, fc, fy, Es, pcX, pcY);
             window.lastPMSurface = pmSurface;
             window.lastLoadPoints = loadPoints;
 
