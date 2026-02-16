@@ -573,80 +573,15 @@
 
     <div class="container">
         <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="beam">梁分析</button>
-            <button class="tab-btn" data-tab="column">柱載重</button>
-            <button class="tab-btn" data-tab="concrete">混凝土用量</button>
+            <button class="tab-btn active" data-tab="column">柱載重</button>
             <button class="tab-btn" data-tab="rebar">鋼筋計算</button>
             <button class="tab-btn" data-tab="rcbeam">RC梁設計</button>
             <button class="tab-btn" data-tab="rccolumn">柱 3D PM Curve</button>
             <button class="tab-btn" data-tab="unit">單位換算</button>
         </nav>
 
-        <!-- ==================== 梁分析 ==================== -->
-        <div class="tab-content active" id="tab-beam">
-            <div class="card">
-                <h2>簡支梁分析</h2>
-                <p class="subtitle">均佈載重下的簡支梁 - 彎矩、剪力、撓度計算</p>
-                <div class="formula-display">
-                    M_max = wL&sup2;/8 &nbsp;&nbsp;|&nbsp;&nbsp; V_max = wL/2 &nbsp;&nbsp;|&nbsp;&nbsp; &delta;_max =
-                    5wL⁴ / (384EI)
-                </div>
-                <div class="diagram-container">
-                    <svg width="400" height="100" viewBox="0 0 400 100">
-                        <line x1="50" y1="60" x2="350" y2="60" stroke="#2563eb" stroke-width="4" />
-                        <polygon points="50,60 40,80 60,80" fill="#2563eb" />
-                        <polygon points="350,60 340,80 360,80" fill="#2563eb" />
-                        <line x1="50" y1="80" x2="360" y2="80" stroke="#94a3b8" stroke-width="1" />
-                        <!-- arrows for distributed load -->
-                        <g stroke="#ef4444" stroke-width="1.5" fill="#ef4444">
-                            <line x1="80" y1="20" x2="80" y2="55" />
-                            <polygon points="80,55 76,47 84,47" />
-                            <line x1="120" y1="20" x2="120" y2="55" />
-                            <polygon points="120,55 116,47 124,47" />
-                            <line x1="160" y1="20" x2="160" y2="55" />
-                            <polygon points="160,55 156,47 164,47" />
-                            <line x1="200" y1="20" x2="200" y2="55" />
-                            <polygon points="200,55 196,47 204,47" />
-                            <line x1="240" y1="20" x2="240" y2="55" />
-                            <polygon points="240,55 236,47 244,47" />
-                            <line x1="280" y1="20" x2="280" y2="55" />
-                            <polygon points="280,55 276,47 284,47" />
-                            <line x1="320" y1="20" x2="320" y2="55" />
-                            <polygon points="320,55 316,47 324,47" />
-                        </g>
-                        <line x1="75" y1="17" x2="325" y2="17" stroke="#ef4444" stroke-width="1.5" />
-                        <text x="200" y="12" text-anchor="middle" fill="#ef4444" font-size="12">w (kN/m)</text>
-                        <text x="200" y="96" text-anchor="middle" fill="#64748b" font-size="12">L</text>
-                    </svg>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>跨距 L <span>(m)</span></label>
-                        <input type="number" id="beam-L" value="6" step="0.1" min="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>均佈載重 w <span>(kN/m)</span></label>
-                        <input type="number" id="beam-w" value="10" step="0.1" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>彈性模數 E <span>(GPa)</span></label>
-                        <input type="number" id="beam-E" value="200" step="1" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>慣性矩 I <span>(cm⁴)</span></label>
-                        <input type="number" id="beam-I" value="8356" step="1" min="1">
-                    </div>
-                </div>
-                <button class="btn" onclick="calcBeam()">計算</button>
-                <div class="result-box" id="result-beam">
-                    <h3>計算結果</h3>
-                    <div id="result-beam-content"></div>
-                </div>
-            </div>
-        </div>
-
         <!-- ==================== 柱載重 ==================== -->
-        <div class="tab-content" id="tab-column">
+        <div class="tab-content active" id="tab-column">
             <div class="card">
                 <h2>柱軸壓載重分析</h2>
                 <p class="subtitle">Euler 挫屈載重 & 容許軸壓力計算</p>
@@ -688,52 +623,6 @@
                 <div class="result-box" id="result-column">
                     <h3>計算結果</h3>
                     <div id="result-column-content"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ==================== 混凝土用量 ==================== -->
-        <div class="tab-content" id="tab-concrete">
-            <div class="card">
-                <h2>混凝土用量估算</h2>
-                <p class="subtitle">依據構件尺寸計算混凝土體積、重量及預拌車數</p>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>構件類型</label>
-                        <select id="conc-type" onchange="toggleConcShape()">
-                            <option value="rect">矩形 (板/梁/牆/基礎)</option>
-                            <option value="cylinder">圓柱</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="conc-w-group">
-                        <label>寬度 <span>(m)</span></label>
-                        <input type="number" id="conc-w" value="0.4" step="0.01">
-                    </div>
-                    <div class="form-group" id="conc-d-group" style="display:none;">
-                        <label>直徑 <span>(m)</span></label>
-                        <input type="number" id="conc-d" value="0.6" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>高度/深度 <span>(m)</span></label>
-                        <input type="number" id="conc-h" value="0.6" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>長度 <span>(m)</span></label>
-                        <input type="number" id="conc-l" value="8" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>數量 <span>(支/片)</span></label>
-                        <input type="number" id="conc-n" value="1" step="1" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>損耗率 <span>(%)</span></label>
-                        <input type="number" id="conc-loss" value="5" step="1" min="0">
-                    </div>
-                </div>
-                <button class="btn" onclick="calcConcrete()">計算</button>
-                <div class="result-box" id="result-concrete">
-                    <h3>計算結果</h3>
-                    <div id="result-concrete-content"></div>
                 </div>
             </div>
         </div>
@@ -783,7 +672,7 @@
         <div class="tab-content" id="tab-rcbeam">
             <div class="card">
                 <h2>RC梁撓曲設計 (ACI 318)</h2>
-                <p class="subtitle">單筋矩形梁 - 依設計彎矩求所需鋼筋量</p>
+                <p class="subtitle">矩形梁（單筋／雙筋）- 依設計彎矩求所需鋼筋量</p>
                 <div class="formula-display">
                     &phi;Mn &ge; Mu &nbsp;&nbsp;|&nbsp;&nbsp; a = As&middot;fy / (0.85&middot;f'c&middot;b)
                     &nbsp;&nbsp;|&nbsp;&nbsp; Mn = As&middot;fy&middot;(d - a/2)
@@ -794,7 +683,10 @@
                         <rect x="80" y="10" width="100" height="160" fill="none" stroke="#2563eb" stroke-width="2" />
                         <!-- concrete fill -->
                         <rect x="80" y="10" width="100" height="160" fill="#e0e7ff" opacity="0.5" />
-                        <!-- rebar circles -->
+                        <!-- compression rebar circles -->
+                        <circle cx="110" cy="30" r="5" fill="#f59e0b" />
+                        <circle cx="150" cy="30" r="5" fill="#f59e0b" />
+                        <!-- tension rebar circles -->
                         <circle cx="105" cy="145" r="6" fill="#ef4444" />
                         <circle cx="130" cy="145" r="6" fill="#ef4444" />
                         <circle cx="155" cy="145" r="6" fill="#ef4444" />
@@ -815,6 +707,11 @@
                         <line x1="184" y1="10" x2="192" y2="10" stroke="#ef4444" stroke-width="1" />
                         <line x1="184" y1="145" x2="192" y2="145" stroke="#ef4444" stroke-width="1" />
                         <text x="198" y="82" fill="#ef4444" font-size="11">d</text>
+                        <!-- dimensions: d' -->
+                        <line x1="198" y1="10" x2="198" y2="30" stroke="#f59e0b" stroke-width="1"
+                            stroke-dasharray="4" />
+                        <line x1="194" y1="30" x2="202" y2="30" stroke="#f59e0b" stroke-width="1" />
+                        <text x="208" y="24" fill="#f59e0b" font-size="11">d'</text>
                         <!-- stress block -->
                         <rect x="230" y="10" width="60" height="50" fill="#3b82f6" opacity="0.3" stroke="#2563eb"
                             stroke-width="1" />
@@ -831,6 +728,13 @@
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
+                        <label>設計類型</label>
+                        <select id="rc-type" onchange="toggleRcBeamType()">
+                            <option value="single">單筋梁</option>
+                            <option value="double">雙筋梁</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>梁寬 b <span>(cm)</span></label>
                         <input type="number" id="rc-b" value="30" step="1" min="1">
                     </div>
@@ -841,6 +745,10 @@
                     <div class="form-group">
                         <label>有效深度 d <span>(cm)</span></label>
                         <input type="number" id="rc-d" value="54" step="0.5" min="1">
+                    </div>
+                    <div class="form-group" id="rc-dc-group" style="display:none;">
+                        <label>壓力筋深度 d' <span>(cm)</span></label>
+                        <input type="number" id="rc-dc" value="6" step="0.5" min="1">
                     </div>
                     <div class="form-group">
                         <label>混凝土強度 f'c <span>(kgf/cm&sup2;)</span></label>
@@ -1039,8 +947,11 @@
                     <h3>F. 設計參數</h3>
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>強度折減係數 φ</label>
-                            <input type="number" id="rcc-phi" value="0.65" step="0.05" min="0.1" max="1">
+                            <label>設計規範</label>
+                            <select id="rcc-code">
+                                <option value="ACI318-14" selected>ACI 318-14</option>
+                                <option value="ACI318-19">ACI 318-19</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>保護層厚度 ic <span>(cm)</span></label>
@@ -1077,8 +988,8 @@
                         <h3 style="color:var(--primary);margin:0;">2D P-M 交互作用曲線</h3>
                         <div style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
                             <label>α 角度:
-                                <input type="number" id="pm-2d-alpha" value="0" step="10" style="width:70px;padding:2px 4px;"
-                                    onchange="if(window.lastPMSurface) drawPMChart2D(window.lastPMSurface, window.lastLoadPoints, parseFloat(this.value)||0)">
+                                <input type="number" id="pm-2d-alpha" value="0" step="10" min="-360" max="360" style="width:70px;padding:2px 4px;"
+                                    onchange="let v=parseFloat(this.value)||0; v=Math.max(-360,Math.min(360,v)); this.value=v; if(window.lastPMSurface) drawPMChart2D(window.lastPMSurface, window.lastLoadPoints, v)">
                             </label>
                             <span>°</span>
                         </div>
@@ -1244,24 +1155,12 @@
 
         // ===== 單位定義 (含維度類型) =====
         const fieldUnits = {
-            // -- 梁分析 --
-            'beam-L': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-            'beam-w': { dflt: 'kN/m', dim: 'load', units: { 'kN/m': 1, 'kgf/cm': 0.980665, 'tf/m': 9.80665, 'N/mm': 1, 'tf/cm': 980.665, 'kgf/m': 0.00980665, 'N/m': 0.001, 'lbf/ft': 0.0145939 } },
-            'beam-E': { dflt: 'GPa', dim: 'stress', units: { 'GPa': 1e6, 'MPa': 1e3, 'kN/m\u00B2': 1, 'kgf/cm\u00B2': 98.0665, 'tf/m\u00B2': 9.80665, 'N/mm\u00B2': 1e3, 'tf/cm\u00B2': 98066.5, 'kgf/m\u00B2': 0.00980665, 'ksi': 6.89476e3 } },
-            'beam-I': { dflt: 'cm\u2074', dim: 'inertia', units: { 'm\u2074': 1, 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
-
             // -- 柱載重 --
             'col-E': { dflt: 'GPa', dim: 'stress', units: { 'GPa': 1e6, 'MPa': 1e3, 'kN/m\u00B2': 1, 'kgf/cm\u00B2': 98.0665, 'tf/m\u00B2': 9.80665, 'N/mm\u00B2': 1e3, 'tf/cm\u00B2': 98066.5, 'kgf/m\u00B2': 0.00980665, 'ksi': 6.89476e3 } },
             'col-I': { dflt: 'cm\u2074', dim: 'inertia', units: { 'm\u2074': 1, 'cm\u2074': 1e-8, 'mm\u2074': 1e-12, 'in\u2074': 4.162314e-7 } },
             'col-A': { dflt: 'cm\u00B2', dim: 'area', units: { 'm\u00B2': 1, 'cm\u00B2': 1e-4, 'mm\u00B2': 1e-6, 'in\u00B2': 6.4516e-4 } },
             'col-L': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
             'col-P': { dflt: 'kN', dim: 'force', units: { 'kN': 1, 'N': 0.001, 'kgf': 0.00980665, 'tf': 9.80665, 'lbf': 0.00444822 } },
-
-            // -- 混凝土 --
-            'conc-w': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-            'conc-d': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-            'conc-h': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
-            'conc-l': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048, 'in': 0.0254 } },
 
             // -- 鋼筋 --
             'rebar-len': { dflt: 'm', dim: 'length', units: { 'm': 1, 'cm': 0.01, 'mm': 0.001, 'ft': 0.3048 } },
@@ -1270,17 +1169,18 @@
             'rc-b': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
             'rc-h': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
             'rc-d': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
-            'rc-fc': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
-            'rc-fy': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
-            'rc-Mu': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'N\u00B7mm': 1.01972e-7, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
+            'rc-dc': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
+            'rc-fc': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 0.1, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+            'rc-fy': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 0.1, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+            'rc-Mu': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e-5, 'kgf\u00B7m': 1e-3, 'N\u00B7mm': 1.01972e-7, 'tf\u00B7cm': 0.01, 'N\u00B7m': 1.01972e-4 } },
 
             // -- RC柱設計 --
-            'rcc-fc': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
-            'rcc-fy': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
-            'rcc-Es': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 1e4, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
-            'rcc-Pu': { dflt: 'tf', dim: 'force', units: { 'tf': 1, 'kN': 0.101972, 'kgf': 1e3, 'N': 0.000101972, 'lbf': 0.000453592 } },
-            'rcc-Mux': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
-            'rcc-Muy': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e5, 'kgf\u00B7m': 1e3, 'tf\u00B7cm': 100, 'N\u00B7m': 1.01972e-4 } },
+            'rcc-fc': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 0.1, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+            'rcc-fy': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 0.1, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+            'rcc-Es': { dflt: 'kgf/cm\u00B2', dim: 'stress', units: { 'kgf/cm\u00B2': 1, 'MPa': 10.1972, 'N/mm\u00B2': 10.1972, 'tf/m\u00B2': 0.1, 'kN/m\u00B2': 0.0101972, 'psi': 0.070307 } },
+            'rcc-Pu': { dflt: 'tf', dim: 'force', units: { 'tf': 1, 'kN': 0.101972, 'kgf': 1e-3, 'N': 1.01972e-4, 'lbf': 4.53592e-4 } },
+            'rcc-Mux': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e-5, 'kgf\u00B7m': 1e-3, 'tf\u00B7cm': 0.01, 'N\u00B7m': 1.01972e-4 } },
+            'rcc-Muy': { dflt: 'tf\u00B7m', dim: 'moment', units: { 'tf\u00B7m': 1, 'kN\u00B7m': 0.101972, 'kgf\u00B7cm': 1e-5, 'kgf\u00B7m': 1e-3, 'tf\u00B7cm': 0.01, 'N\u00B7m': 1.01972e-4 } },
             'rcc-ic': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
             'rcc-spacing': { dflt: 'cm', dim: 'length', units: { 'cm': 1, 'mm': 0.1, 'm': 100, 'in': 2.54 } },
             'rcc-barArea': { dflt: 'cm²', dim: 'area', units: { 'cm²': 1, 'mm²': 0.01, 'in²': 6.4516 } },
@@ -1370,30 +1270,6 @@
             return { v: value * fromF / toF, u: toUnit };
         }
 
-        // ===== 梁分析 =====
-        function calcBeam() {
-            const L = valU('beam-L'), w = valU('beam-w');
-            const E = valU('beam-E');
-            const I = valU('beam-I');
-            const Mmax = w * L * L / 8;
-            const Vmax = w * L / 2;
-            const delta = (5 * w * Math.pow(L, 4)) / (384 * E * I) * 1000; // mm
-            const Rmax = w * L / 2;
-
-            const rM = resultInSystem(Mmax, 'kN\u00B7m', 'moment');
-            const rV = resultInSystem(Vmax, 'kN', 'force');
-            const rR = resultInSystem(Rmax, 'kN', 'force');
-            const rD = resultInSystem(delta, 'mm', 'length');
-
-            showResult('beam', [
-                ['\u6700\u5927\u5F4E\u77E9 M_max', fmt(rM.v, 2) + ' ' + rM.u],
-                ['\u6700\u5927\u526A\u529B V_max', fmt(rV.v, 2) + ' ' + rV.u],
-                ['\u652F\u627F\u53CD\u529B R', fmt(rR.v, 2) + ' ' + rR.u],
-                ['\u6700\u5927\u6493\u5EA6 \u03B4_max', fmt(rD.v, 3) + ' ' + rD.u],
-                ['\u6493\u5EA6\u6BD4 L/\u03B4', 'L/' + fmt(L * 1000 / delta, 0)],
-            ]);
-        }
-
         // ===== 柱載重 =====
         function calcColumn() {
             const E = valU('col-E');
@@ -1420,37 +1296,6 @@
                 ['\u7D30\u9577\u6BD4 KL/r', fmt(slenderness, 1)],
                 ['\u5B89\u5168\u4FC2\u6578 P_cr/P', fmt(fs, 2)],
                 ['\u72C0\u614B', fs >= 1.0 ? '\u2705 \u5B89\u5168' : '\u26A0\uFE0F \u8D85\u904E\u631C\u5C48\u8F09\u91CD\uFF01'],
-            ]);
-        }
-
-        // ===== 混凝土用量 =====
-        function toggleConcShape() {
-            const t = sel('conc-type');
-            document.getElementById('conc-w-group').style.display = t === 'rect' ? '' : 'none';
-            document.getElementById('conc-d-group').style.display = t === 'cylinder' ? '' : 'none';
-        }
-
-        function calcConcrete() {
-            const type = sel('conc-type');
-            const h = valU('conc-h'), l = valU('conc-l'), n = val('conc-n'), loss = val('conc-loss');
-            let vol;
-            if (type === 'rect') {
-                const w = valU('conc-w');
-                vol = w * h * l;
-            } else {
-                const d = valU('conc-d');
-                vol = Math.PI * Math.pow(d / 2, 2) * l;
-            }
-            const totalVol = vol * n;
-            const withLoss = totalVol * (1 + loss / 100);
-            const weight = withLoss * 2400;
-            const trucks = Math.ceil(withLoss / 9);
-            showResult('concrete', [
-                ['\u55AE\u652F\u9AD4\u7A4D', fmt(vol, 3) + ' m\u00B3'],
-                ['\u7E3D\u9AD4\u7A4D (\u6DE8)', fmt(totalVol, 3) + ' m\u00B3'],
-                ['\u542B\u640D\u8017\u9AD4\u7A4D', fmt(withLoss, 3) + ' m\u00B3'],
-                ['\u9810\u4F30\u91CD\u91CF', fmt(weight, 0) + ' kg (' + fmt(weight / 1000, 2) + ' t)'],
-                ['\u9810\u62CC\u8ECA\u6578 (9m\u00B3/\u8ECA)', trucks + ' \u8ECA'],
             ]);
         }
 
@@ -1484,15 +1329,22 @@
         }
 
         // ===== RC梁撓曲設計 =====
+        function toggleRcBeamType() {
+            const isDouble = sel('rc-type') === 'double';
+            document.getElementById('rc-dc-group').style.display = isDouble ? '' : 'none';
+        }
+
         function calcRCBeam() {
             // 所有計算以 kgf-cm 為基準
             const b = valU('rc-b');    // cm
             const h = valU('rc-h');    // cm
             const d = valU('rc-d');    // cm
+            const dc = valU('rc-dc'); // cm (壓力鋼筋深度 d')
             const fc = valU('rc-fc');  // kgf/cm²
             const fy = valU('rc-fy');  // kgf/cm²
             const Mu_tfm = valU('rc-Mu'); // tf·m
             const phi = val('rc-phi');
+            const Es = 2.04e6; // kgf/cm² (鋼筋彈性模數)
 
             // 轉換 Mu: tf·m → kgf·cm
             const Mu = Mu_tfm * 1e5; // 1 tf·m = 100000 kgf·cm
@@ -1523,48 +1375,14 @@
             // 檢查是否超過單筋梁容量
             const Rn_max = rho_max * fy * (1 - 0.59 * rho_max * fy / fc);
 
+            const userType = sel('rc-type'); // 'single' or 'double'
             let rho_req, As_req, a, Mn_provided;
             let status = '';
-            let isOverReinforced = false;
+            let isDoubly = false;
+            let isOverSingle = (Rn > Rn_max);
+            let As1 = 0, As2 = 0, As_comp = 0, fs_comp = 0, compYielded = false;
 
-            if (Rn > Rn_max) {
-                isOverReinforced = true;
-                rho_req = rho_max;
-                As_req = rho_max * b * d;
-                a = As_req * fy / (0.85 * fc * b);
-                Mn_provided = phi * As_req * fy * (d - a / 2);
-            } else {
-                // ρ = (0.85 f'c / fy) × (1 - √(1 - 2Rn / (0.85 f'c)))
-                const term = 2 * Rn / (0.85 * fc);
-                if (term >= 1) {
-                    isOverReinforced = true;
-                    rho_req = rho_max;
-                } else {
-                    rho_req = (0.85 * fc / fy) * (1 - Math.sqrt(1 - term));
-                }
-                // 檢查最小鋼筋比
-                if (rho_req < rho_min) rho_req = rho_min;
-                As_req = rho_req * b * d;
-                a = As_req * fy / (0.85 * fc * b);
-                Mn_provided = phi * As_req * fy * (d - a / 2);
-            }
-
-            // c 值與淨拉應變
-            const c = a / beta1;
-            const epsilon_t = 0.003 * (d - c) / c;
-
-            // 判斷狀態
-            if (isOverReinforced) {
-                status = '\u26A0\uFE0F \u8D85\u904E\u55AE\u7B4B\u6881\u5BB9\u91CF\uFF0C\u9700\u63A1\u96D9\u7B4B\u6881\u6216\u52A0\u5927\u65B7\u9762';
-            } else if (epsilon_t >= 0.005) {
-                status = '\u2705 \u62C9\u529B\u63A7\u5236\u65B7\u9762 (\u03B5t \u2265 0.005)';
-            } else if (epsilon_t >= 0.004) {
-                status = '\u26A0\uFE0F \u904E\u6E21\u5340\u65B7\u9762 (0.004 \u2264 \u03B5t < 0.005)';
-            } else {
-                status = '\u274C \u58D3\u529B\u63A7\u5236\u65B7\u9762 (\u03B5t < 0.004)';
-            }
-
-            // 建議配筋
+            // 建議配筋輔助函式
             const rebarOptions = [
                 { no: '#4 (D13)', dia: 1.27, area: 1.267 },
                 { no: '#5 (D16)', dia: 1.59, area: 1.986 },
@@ -1574,37 +1392,177 @@
                 { no: '#9 (D29)', dia: 2.87, area: 6.469 },
                 { no: '#10 (D32)', dia: 3.23, area: 8.143 },
             ];
-            let suggestion = '';
-            for (const rb of rebarOptions) {
-                const nBars = Math.ceil(As_req / rb.area);
-                const totalAs = nBars * rb.area;
-                const clearWidth = b - 2 * 4 - 2 * 1.27; // 假設 4cm 保護層 + #4 箍筋
-                const spacing = nBars > 1 ? (clearWidth - nBars * rb.dia) / (nBars - 1) : clearWidth;
-                if (spacing >= 2.5 && nBars <= 8) {
-                    suggestion = nBars + '-' + rb.no + ' (As=' + fmt(totalAs, 2) + ' cm\u00B2)';
-                    break;
+            function suggestBars(asNeeded) {
+                for (const rb of rebarOptions) {
+                    const nBars = Math.ceil(asNeeded / rb.area);
+                    const totalAs = nBars * rb.area;
+                    const clearWidth = b - 2 * 4 - 2 * 1.27; // 4cm 保護層 + #4 箍筋
+                    const spacing = nBars > 1 ? (clearWidth - nBars * rb.dia) / (nBars - 1) : clearWidth;
+                    if (spacing >= 2.5 && nBars <= 8) {
+                        const rAs = resultInSystem(totalAs, 'cm\u00B2', 'area');
+                        return nBars + '-' + rb.no + ' (As=' + fmt(rAs.v, 2) + ' ' + rAs.u + ')';
+                    }
+                }
+                return '\u8ACB\u8ABF\u6574\u65B7\u9762\u6216\u63A1\u7528\u96D9\u5C64\u914D\u7B4B';
+            }
+
+            // 單筋梁最大容量 (兩種模式都需要)
+            const As1_max = rho_max * b * d;
+            const a1_max = As1_max * fy / (0.85 * fc * b);
+            const Mn1_max = As1_max * fy * (d - a1_max / 2); // kgf·cm
+
+            if (userType === 'double') {
+                // ===== 雙筋梁設計 =====
+                isDoubly = true;
+
+                if (Mn_req <= Mn1_max) {
+                    // Mu 在單筋梁容量內，壓力鋼筋按最小需求計算
+                    // 以單筋梁求得 As_tension，As' = 0
+                    const term = 2 * Rn / (0.85 * fc);
+                    rho_req = (term >= 1) ? rho_max : (0.85 * fc / fy) * (1 - Math.sqrt(1 - term));
+                    if (rho_req < rho_min) rho_req = rho_min;
+                    As1 = rho_req * b * d;
+                    As_req = As1;
+                    As_comp = 0;
+                    As2 = 0;
+                    a = As_req * fy / (0.85 * fc * b);
+                    Mn_provided = phi * As_req * fy * (d - a / 2);
+                    fs_comp = fy;
+                    compYielded = true;
+                } else {
+                    // Mu 超過單筋梁容量，需壓力鋼筋
+                    As1 = As1_max;
+                    const Mn2 = Mn_req - Mn1_max;
+
+                    // 中性軸深度 (以 As1 計算)
+                    const c1 = a1_max / beta1;
+
+                    // 壓力鋼筋應力 (檢查是否降伏)
+                    const eps_comp = 0.003 * (c1 - dc) / c1;
+                    fs_comp = Math.min(Es * eps_comp, fy);
+                    compYielded = (fs_comp >= fy);
+
+                    // 壓力鋼筋面積
+                    As_comp = Mn2 / (fs_comp * (d - dc));
+
+                    // 對應額外拉力鋼筋
+                    As2 = As_comp * fs_comp / fy;
+
+                    // 總拉力鋼筋
+                    As_req = As1 + As2;
+                    rho_req = As_req / (b * d);
+                    a = (As_req * fy - As_comp * fs_comp) / (0.85 * fc * b);
+
+                    // 驗算 φMn
+                    const c_final = a / beta1;
+                    const eps_comp_final = 0.003 * (c_final - dc) / c_final;
+                    const fs_comp_final = Math.min(Es * eps_comp_final, fy);
+                    Mn_provided = phi * (0.85 * fc * a * b * (d - a / 2) + As_comp * fs_comp_final * (d - dc));
+                }
+
+            } else {
+                // ===== 單筋梁設計 =====
+                if (isOverSingle) {
+                    // 超過單筋梁容量，以 ρmax 計算並警告
+                    rho_req = rho_max;
+                    As_req = rho_max * b * d;
+                    a = As_req * fy / (0.85 * fc * b);
+                    Mn_provided = phi * As_req * fy * (d - a / 2);
+                } else {
+                    const term = 2 * Rn / (0.85 * fc);
+                    if (term >= 1) {
+                        rho_req = rho_max;
+                    } else {
+                        rho_req = (0.85 * fc / fy) * (1 - Math.sqrt(1 - term));
+                    }
+                    if (rho_req < rho_min) rho_req = rho_min;
+                    As_req = rho_req * b * d;
+                    a = As_req * fy / (0.85 * fc * b);
+                    Mn_provided = phi * As_req * fy * (d - a / 2);
                 }
             }
-            if (!suggestion) suggestion = '\u8ACB\u8ABF\u6574\u65B7\u9762\u6216\u63A1\u7528\u96D9\u5C64\u914D\u7B4B';
 
-            // 輸出結果 (以 tf·m 和 cm² 顯示)
+            // c 值與淨拉應變
+            const c = a / beta1;
+            const epsilon_t = 0.003 * (d - c) / c;
+
+            // 判斷狀態
+            if (isDoubly && As_comp > 0) {
+                status = '\u2705 \u96D9\u7B4B\u6881\u8A2D\u8A08' +
+                    (compYielded ? ' (\u58D3\u529B\u7B4B\u5DF2\u964D\u4F0F)' : ' (\u58D3\u529B\u7B4B\u672A\u964D\u4F0F)');
+            } else if (isDoubly && As_comp === 0) {
+                if (epsilon_t >= 0.005)
+                    status = '\u2705 \u96D9\u7B4B\u6881 \u2014 Mu\u5728\u55AE\u7B4B\u5BB9\u91CF\u5167\uFF0C\u7121\u9700\u58D3\u529B\u7B4B';
+                else
+                    status = '\u26A0\uFE0F \u96D9\u7B4B\u6881 \u2014 Mu\u5728\u55AE\u7B4B\u5BB9\u91CF\u5167\uFF0C\u7121\u9700\u58D3\u529B\u7B4B';
+            } else if (isOverSingle) {
+                status = '\u26A0\uFE0F \u8D85\u904E\u55AE\u7B4B\u6881\u5BB9\u91CF\uFF0C\u8ACB\u6539\u7528\u96D9\u7B4B\u6881\u6216\u52A0\u5927\u65B7\u9762';
+            } else if (epsilon_t >= 0.005) {
+                status = '\u2705 \u62C9\u529B\u63A7\u5236\u65B7\u9762 (\u03B5t \u2265 0.005)';
+            } else if (epsilon_t >= 0.004) {
+                status = '\u26A0\uFE0F \u904E\u6E21\u5340\u65B7\u9762 (0.004 \u2264 \u03B5t < 0.005)';
+            } else {
+                status = '\u274C \u58D3\u529B\u63A7\u5236\u65B7\u9762 (\u03B5t < 0.004)';
+            }
+
+            // 輸出結果 — 所有有量綱值透過 resultInSystem 轉換
             const rMu = resultInSystem(Mu_tfm, 'tf\u00B7m', 'moment');
             const rMn = resultInSystem(Mn_provided / 1e5, 'tf\u00B7m', 'moment');
+            const rMn1max = resultInSystem(Mn1_max * phi / 1e5, 'tf\u00B7m', 'moment');
+            const rAs = resultInSystem(As_req, 'cm\u00B2', 'area');
+            const ra  = resultInSystem(a, 'cm', 'length');
+            const rc  = resultInSystem(c, 'cm', 'length');
 
-            showResult('rcbeam', [
+            const results = [
                 ['\u8A2D\u8A08\u5F4E\u77E9 Mu', fmt(rMu.v, 2) + ' ' + rMu.u],
-                ['\u6240\u9700\u92FC\u7B4B\u91CF As', fmt(As_req, 2) + ' cm\u00B2'],
-                ['\u92FC\u7B4B\u6BD4 \u03C1', fmt(rho_req * 100, 3) + ' %'],
+            ];
+
+            if (isDoubly) {
+                // --- 雙筋梁結果 ---
+                results.push(
+                    ['\u55AE\u7B4B\u6881\u6700\u5927 \u03C6Mn1', fmt(rMn1max.v, 2) + ' ' + rMn1max.u],
+                    ['\u62C9\u529B\u92FC\u7B4B As', fmt(rAs.v, 2) + ' ' + rAs.u],
+                    ['\u5EFA\u8B70\u62C9\u529B\u7B4B', suggestBars(As_req)],
+                );
+                if (As_comp > 0) {
+                    const rAsc = resultInSystem(As_comp, 'cm\u00B2', 'area');
+                    const rFs  = resultInSystem(fs_comp, 'kgf/cm\u00B2', 'stress');
+                    results.push(
+                        ['\u58D3\u529B\u92FC\u7B4B As\'', fmt(rAsc.v, 2) + ' ' + rAsc.u],
+                        ['\u58D3\u529B\u7B4B\u61C9\u529B f\'s', fmt(rFs.v, 0) + ' ' + rFs.u + (compYielded ? ' (=fy)' : '')],
+                        ['\u5EFA\u8B70\u58D3\u529B\u7B4B', suggestBars(As_comp)],
+                    );
+                } else {
+                    results.push(
+                        ['\u58D3\u529B\u92FC\u7B4B As\'', '0 (\u7121\u9700\u58D3\u529B\u7B4B)'],
+                    );
+                }
+            } else {
+                // --- 單筋梁結果 ---
+                results.push(
+                    ['\u6240\u9700\u92FC\u7B4B\u91CF As', fmt(rAs.v, 2) + ' ' + rAs.u],
+                    ['\u92FC\u7B4B\u6BD4 \u03C1', fmt(rho_req * 100, 3) + ' %'],
+                    ['\u5EFA\u8B70\u914D\u7B4B', suggestBars(As_req)],
+                );
+                if (isOverSingle) {
+                    results.push(
+                        ['\u55AE\u7B4B\u6881\u6700\u5927 \u03C6Mn', fmt(rMn1max.v, 2) + ' ' + rMn1max.u],
+                    );
+                }
+            }
+
+            results.push(
                 ['\u6700\u5C0F\u92FC\u7B4B\u6BD4 \u03C1min', fmt(rho_min * 100, 3) + ' %'],
                 ['\u6700\u5927\u92FC\u7B4B\u6BD4 \u03C1max', fmt(rho_max * 100, 3) + ' %'],
-                ['\u61C9\u529B\u584A\u6DF1\u5EA6 a', fmt(a, 2) + ' cm'],
-                ['\u4E2D\u6027\u8EF8\u6DF1\u5EA6 c', fmt(c, 2) + ' cm'],
+                ['\u61C9\u529B\u584A\u6DF1\u5EA6 a', fmt(ra.v, 2) + ' ' + ra.u],
+                ['\u4E2D\u6027\u8EF8\u6DF1\u5EA6 c', fmt(rc.v, 2) + ' ' + rc.u],
                 ['\u6DE8\u62C9\u61C9\u8B8A \u03B5t', fmt(epsilon_t, 4)],
                 ['\u03B21', fmt(beta1, 3)],
                 ['\u63D0\u4F9B\u5F4E\u77E9 \u03C6Mn', fmt(rMn.v, 2) + ' ' + rMn.u],
-                ['\u5EFA\u8B70\u914D\u7B4B', suggestion],
                 ['\u65B7\u9762\u72C0\u614B', status],
-            ]);
+            );
+
+            showResult('rcbeam', results);
         }
 
         // ===== RC柱設計 =====
@@ -3004,9 +2962,27 @@
                 window.lastPMSurface.forEach(slice => {
                     csv += `\n[PM_CURVE_${slice.angle}]\n`;
                     csv += 'phiPn_tf,phiMn_tfm,Pn_tf,Mn_tfm,phi,epsT,c\n';
-                    slice.curve.forEach(pt => {
-                        csv += `${pt.phiPn_tf},${pt.phiMn_tfm},${pt.Pn_tf},${pt.Mn_tfm},${pt.phi},${pt.epsT},${pt.c}\n`;
-                    });
+                    const curve = slice.curve;
+                    let hasZero = false;
+                    for (let i = 0; i < curve.length; i++) {
+                        const pt = curve[i];
+                        // 在跨越 phiPn=0 的相鄰點之間插入內插點
+                        if (i > 0 && !hasZero) {
+                            const prev = curve[i - 1];
+                            if ((prev.phiPn_tf > 0 && pt.phiPn_tf < 0) || (prev.phiPn_tf < 0 && pt.phiPn_tf > 0)) {
+                                const dP = pt.phiPn_tf - prev.phiPn_tf;
+                                if (Math.abs(dP) > 1e-12) {
+                                    const t = -prev.phiPn_tf / dP;
+                                    const lerp = (a, b) => a + t * (b - a);
+                                    const f = v => v.toFixed(4);
+                                    csv += `0,${f(lerp(prev.phiMn_tfm, pt.phiMn_tfm))},${f(lerp(prev.Pn_tf, pt.Pn_tf))},${f(lerp(prev.Mn_tfm, pt.Mn_tfm))},${lerp(prev.phi, pt.phi)},${lerp(prev.epsT, pt.epsT)},${lerp(prev.c, pt.c)}\n`;
+                                    hasZero = true;
+                                }
+                            }
+                        }
+                        if (Math.abs(pt.phiPn_tf) < 1e-10) hasZero = true;
+                        csv += `${pt.phiPn_tf.toFixed(4)},${pt.phiMn_tfm.toFixed(4)},${pt.Pn_tf.toFixed(4)},${pt.Mn_tfm.toFixed(4)},${pt.phi},${pt.epsT},${pt.c}\n`;
+                    }
                 });
             }
 
