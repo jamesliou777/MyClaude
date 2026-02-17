@@ -576,7 +576,7 @@
             <button class="tab-btn active" data-tab="column">柱載重</button>
             <button class="tab-btn" data-tab="rebar">鋼筋計算</button>
             <button class="tab-btn" data-tab="rcbeam">RC梁設計</button>
-            <button class="tab-btn" data-tab="rccolumn">柱 3D PM Curve</button>
+            <button class="tab-btn" data-tab="rccolumn">RC 柱 P-M Curve</button>
             <button class="tab-btn" data-tab="unit">單位換算</button>
         </nav>
 
@@ -1023,8 +1023,8 @@
                                         onchange="if(window.lastPMSurface) drawPMChart3D(window.lastPMSurface, window.lastLoadPoints)"></label>
                                 <label>危險: <input type="color" id="pm-color-unsafe" value="#ef4444"
                                         onchange="if(window.lastPMSurface) drawPMChart3D(window.lastPMSurface, window.lastLoadPoints)"></label>
-                                <label>透明度: <input type="range" id="pm-opacity" min="0.1" max="1.0" step="0.1"
-                                        value="0.5" style="width:60px;vertical-align:middle"
+                                <label>透明度: <input type="range" id="pm-opacity" min="0.05" max="1.0" step="0.05"
+                                        value="0.3" style="width:60px;vertical-align:middle"
                                         onchange="if(window.lastPMSurface) drawPMChart3D(window.lastPMSurface, window.lastLoadPoints)"></label>
                             </div>
                             <div style="display:flex; gap:10px; align-items:center; font-size:0.9rem;">
@@ -1826,51 +1826,21 @@
             if (outer.length < 3) return;
 
             const Ag = polyProps(outer).area;
-            const Ast = rhoG / 100 * Ag;
+            const hollowPoly = rcColData.hollow || [];
+            const Ah = hollowPoly.length >= 3 ? polyProps(hollowPoly).area : 0;
+            const Anet = Ag - Ah;
+            const Ast = rhoG / 100 * Anet;
 
-            // 先試排一次以取得鋼筋根數
-            const cover = parseFloat(document.getElementById('rcc-cover').value) || 4;
-            const spacing = parseFloat(document.getElementById('rcc-spacing').value) || 15;
-            const n = outer.length;
-            let signedArea2 = 0;
-            for (let i = 0; i < n; i++) {
-                const j = (i + 1) % n;
-                signedArea2 += outer[i].x * outer[j].y - outer[j].x * outer[i].y;
-            }
-            const ws = signedArea2 >= 0 ? 1 : -1;
-            const edges = [];
-            for (let i = 0; i < n; i++) {
-                const j = (i + 1) % n;
-                const ex = outer[j].x - outer[i].x, ey = outer[j].y - outer[i].y;
-                const len = Math.sqrt(ex * ex + ey * ey);
-                if (len === 0) { edges.push(null); continue; }
-                const nx = ws * (-ey) / len, ny = ws * ex / len;
-                edges.push({ px: outer[i].x + nx * cover, py: outer[i].y + ny * cover, dx: ex, dy: ey });
-            }
-            function li(e1, e2) {
-                const det = e1.dx * e2.dy - e1.dy * e2.dx;
-                if (Math.abs(det) < 1e-10) return null;
-                const t = ((e2.px - e1.px) * e2.dy - (e2.py - e1.py) * e2.dx) / det;
-                return { x: e1.px + t * e1.dx, y: e1.py + t * e1.dy };
-            }
-            const offPts = [];
-            for (let i = 0; i < n; i++) {
-                const prev = (i - 1 + n) % n;
-                const e1 = edges[prev], e2 = edges[i];
-                if (!e1 || !e2) { offPts.push(outer[i]); continue; }
-                const pt = li(e1, e2);
-                offPts.push(pt || outer[i]);
-            }
-            let nBars = offPts.length;
-            for (let i = 0; i < offPts.length; i++) {
-                const j = (i + 1) % offPts.length;
-                const dx = offPts[j].x - offPts[i].x, dy = offPts[j].y - offPts[i].y;
-                nBars += Math.floor(Math.sqrt(dx * dx + dy * dy) / spacing) - 1;
-            }
-            if (nBars < 1) nBars = 1;
+            // 先以暫定面積排列一次，取得實際根數
+            autoArrangeRebar();
+            const nBars = rcColData.rebars.length;
+            if (nBars < 1) return;
 
-            const barArea = parseFloat((Ast / nBars).toFixed(2));
-            document.getElementById('rcc-barArea').value = barArea;
+            // 以實際根數反算每支面積，更新所有鋼筋
+            const barArea = Ast / nBars;
+            document.getElementById('rcc-barArea').value = parseFloat(barArea.toFixed(4));
+            rcColData.rebars.forEach(rb => { rb.area = barArea; });
+            renderRebarTable();
         }
 
         function autoArrangeRebar() {
@@ -2014,13 +1984,14 @@
                 html += `<text x="${sx + 5}" y="${sy - 5}" fill="#2563eb" font-size="9">${i + 1}</text>`;
             });
 
-            // Rebars
+            // Rebars - circle size proportional to actual area
             rebars.forEach((rb, i) => {
                 const sx = tx(rb.x), sy = ty(rb.y);
-                const info = rebarInfo[rb.no] || rebarInfo[8];
-                const r = Math.max(3, info.dia * scale / 2);
+                const area = rb.area || (rebarInfo[rb.no] || rebarInfo[8]).area;
+                const dia = area > 0 ? Math.sqrt(4 * area / Math.PI) : 1;
+                const r = Math.max(3, dia * scale / 2);
                 html += `<circle cx="${sx}" cy="${sy}" r="${Math.min(r, 8)}" fill="#ef4444" stroke="#b91c1c" stroke-width="1"/>`;
-                const label = rb.no === 0 ? '自訂' : info.name.split(' ')[0];
+                const label = rb.no === 0 ? '自訂' : (rebarInfo[rb.no] || rebarInfo[8]).name.split(' ')[0];
                 html += `<text x="${sx + 6}" y="${sy + 3}" fill="#b91c1c" font-size="8">${label}</text>`;
             });
 
@@ -2281,6 +2252,16 @@
             const Po = 0.85 * fc * Ac + fy * totalAs;
             const phiPo_max = 0.80 * 0.65 * Po; // ACI max for tied columns
 
+            // Compute exact balanced cb
+            // d = distance from extreme compression fiber to farthest tension rebar
+            const epsY = fy / Es;
+            let dMax = 0;
+            rebars.forEach(rb => {
+                const di_from_top = extremeCompDist - (rb.x * cosA + rb.y * sinA);
+                if (di_from_top > dMax) dMax = di_from_top;
+            });
+            const cb = dMax > 0 ? dMax * 0.003 / (0.003 + epsY) : totalDepth * 0.5;
+
             // Sweep c from small to large
             const pmPoints = [];
             const cMin = totalDepth * 0.01;
@@ -2291,10 +2272,22 @@
             const logMin = Math.log(cMin);
             const logMax = Math.log(cMax);
 
+            // Collect c values and insert exact cb
+            const cValues = [];
             for (let i = 0; i <= numPts; i++) {
                 const t = i / numPts;
-                const c = Math.exp(logMin + t * (logMax - logMin));
+                cValues.push(Math.exp(logMin + t * (logMax - logMin)));
+            }
+            // Insert cb if within range
+            let balanceIdx = -1;
+            if (cb >= cMin && cb <= cMax) {
+                cValues.push(cb);
+                cValues.sort((a, b) => a - b);
+            }
+
+            cValues.forEach((c, i) => {
                 const pt = computePMPoint(c, outerPoly, hollowPoly, rebars, fc, fy, Es, beta1, alphaRad, extremeCompDist, totalDepth, pcAlpha);
+                if (Math.abs(c - cb) < 1e-6) balanceIdx = i;
                 pmPoints.push({
                     c,
                     Pn: pt.Pn,
@@ -2308,6 +2301,15 @@
                     phiMny: pt.phi * pt.Mny,
                     epsT: pt.epsT
                 });
+            });
+
+            // Fallback if cb was out of range
+            if (balanceIdx < 0) {
+                let minDiff = Infinity;
+                pmPoints.forEach((pt, i) => {
+                    const diff = Math.abs(pt.epsT - epsY);
+                    if (diff < minDiff) { minDiff = diff; balanceIdx = i; }
+                });
             }
 
             // Apply ACI max axial force cap
@@ -2315,15 +2317,6 @@
                 if (pt.phiPn > phiPo_max) {
                     pt.phiPn = phiPo_max;
                 }
-            });
-
-            // Find balance point (epsT ≈ epsY)
-            const epsY = fy / Es;
-            let balanceIdx = 0;
-            let minDiff = Infinity;
-            pmPoints.forEach((pt, i) => {
-                const diff = Math.abs(pt.epsT - epsY);
-                if (diff < minDiff) { minDiff = diff; balanceIdx = i; }
             });
 
             // Find pure bending point (Pn ≈ 0), interpolate
@@ -2354,7 +2347,8 @@
                 phiPo_max_tf: phiPo_max / 1000,
                 balanceIdx,
                 pureBendIdx,
-                beta1
+                beta1,
+                cb
             };
         }
 
@@ -2944,6 +2938,11 @@
             const Es = document.getElementById('rcc-Es').value;
             csv += `${fc},${fy},${Es}\n`;
 
+            // [REBAR_CONFIG]
+            csv += '\n[REBAR_CONFIG]\n';
+            csv += 'minSpacing\n';
+            csv += `${document.getElementById('rcc-spacing').value}\n`;
+
             // [REBARS]
             csv += '\n[REBARS]\n';
             csv += 'x,y,no,area\n';
@@ -3001,8 +3000,15 @@
                     const writable = await handle.createWritable();
                     await writable.write(blob);
                     await writable.close();
+                    // Verify write succeeded by reading back file size
+                    const written = await handle.getFile();
+                    if (written.size !== blob.size) {
+                        alert('CSV 匯出警告：檔案可能未正確寫入（檔案被其他程式鎖定？），請關閉佔用程式後重試。');
+                    }
                 } catch (err) {
-                    if (err.name !== 'AbortError') console.error(err);
+                    if (err.name === 'AbortError') return;
+                    alert('CSV 匯出失敗：檔案可能被其他程式（如 Excel）鎖定，請關閉後重試。\n(' + err.message + ')');
+                    console.error(err);
                 }
             } else {
                 const url = URL.createObjectURL(blob);
@@ -3083,6 +3089,12 @@
                 document.getElementById('rcc-fc').value = matRows[0][0] || 280;
                 document.getElementById('rcc-fy').value = matRows[0][1] || 4200;
                 document.getElementById('rcc-Es').value = matRows[0][2] || 2040000;
+            }
+
+            // [REBAR_CONFIG]
+            const cfgRows = parseRows('REBAR_CONFIG');
+            if (cfgRows.length >= 1) {
+                document.getElementById('rcc-spacing').value = cfgRows[0][0] || 10;
             }
 
             // [REBARS]
@@ -3188,9 +3200,9 @@
             if (rebars.length === 0) {
                 showResult('rccolumn', [
                     ['毛斷面積 Ag', fmt(areaGross, 2) + ' cm²'],
-                    ['空心面積', fmt(areaHollow, 2) + ' cm²'],
+                    ['空心面積 Ah', fmt(areaHollow, 2) + ' cm²'],
                     ['淨斷面積 (Ag-Ah)', fmt(areaNet, 2) + ' cm²'],
-                    ['混凝土淨面積 Ac', fmt(Ac, 2) + ' cm²'],
+                    ['混凝土淨面積 Ac = Ag−Ah−Ast', fmt(Ac, 2) + ' cm²'],
                     ['總鋼筋面積 Ast', '0 cm²'],
                     ['注意', '請先配置鋼筋再計算 P-M 曲線'],
                 ]);
@@ -3225,9 +3237,9 @@
             // 結果表格
             const resultRows = [
                 ['毛斷面積 Ag', fmt(areaGross, 2) + ' cm²'],
-                ['空心面積', fmt(areaHollow, 2) + ' cm²'],
+                ['空心面積 Ah', fmt(areaHollow, 2) + ' cm²'],
                 ['淨斷面積 (Ag-Ah)', fmt(areaNet, 2) + ' cm²'],
-                ['混凝土淨面積 Ac', fmt(Ac, 2) + ' cm²'],
+                ['混凝土淨面積 Ac = Ag−Ah−Ast', fmt(Ac, 2) + ' cm²'],
                 ['總鋼筋面積 Ast', fmt(totalAs, 2) + ' cm²'],
                 ['鋼筋比 ρg', fmt(rhoG, 2) + ' %'],
                 ['鋼筋根數', rebars.length + ' 根'],
@@ -3236,8 +3248,11 @@
                 ['β₁', fmt(pmData.beta1, 4)],
                 ['純壓強度 Po', fmt(pmData.Po_tf, 2) + ' tf'],
                 ['φPo,max (0.80φPo)', fmt(pmData.phiPo_max_tf, 2) + ' tf'],
-                ['平衡點 φPn', fmt(pmData.curve[pmData.balanceIdx].phiPn_tf, 2) + ' tf'],
-                ['平衡點 φMn', fmt(pmData.curve[pmData.balanceIdx].phiMn_tfm, 2) + ' tf·m'],
+                ['平衡點 cb', fmt(pmData.cb, 2) + ' cm'],
+                ['平衡點 Pn_b', fmt(pmData.curve[pmData.balanceIdx].Pn_tf, 2) + ' tf'],
+                ['平衡點 Mn_b', fmt(pmData.curve[pmData.balanceIdx].Mn_tfm, 2) + ' tf·m'],
+                ['平衡點 φPn_b', fmt(pmData.curve[pmData.balanceIdx].phiPn_tf, 2) + ' tf'],
+                ['平衡點 φMn_b', fmt(pmData.curve[pmData.balanceIdx].phiMn_tfm, 2) + ' tf·m'],
                 ['純彎 φMo', fmt(pmData.curve[pmData.pureBendIdx].phiMn_tfm, 2) + ' tf·m'],
                 ['───', '── 載重組合 ──'],
             ];
