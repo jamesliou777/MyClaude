@@ -4,7 +4,7 @@
 - 單頁式工程計算器（`index.html`），部署於 GitHub Pages
 - GitHub 帳號：`jamesliou777`
 - 儲存庫：`MyClaude`，分支：`main`
-- 最新提交：`7558bfe` - RC柱改進：ρg修正、平衡點cb計算、SVG鋼筋按面積繪製、CSV匯出警告
+- 最新提交：`c99190c` - CSV匯出增加[BALANCE]平衡點資料
 
 ## 架構
 - **單一 HTML 檔案**，內嵌 CSS 與 JS
@@ -36,7 +36,7 @@
 - **P-Mx-My 交互圖**：3D 曲面內插安全檢核（每筆載重獨立 α 角），Plotly 3D 視覺化（透明度可調）
 - **平衡點**：精確計算 cb = d·εcu/(εcu+εy)，結果顯示 cb、Pn_b、Mn_b、φPn_b、φMn_b
 - **ρg 計算**：以 Anet（Ag−Ah）為基底，直接呼叫 autoArrangeRebar 取得實際根數反算 barArea
-- **CSV 匯出/匯入**：支援最小鋼筋間距欄位（[REBAR_CONFIG]），匯出失敗時彈出警告
+- **CSV 匯出/匯入**：支援最小鋼筋間距欄位（[REBAR_CONFIG]）、平衡點資料（[BALANCE]），匯出失敗時彈出警告
 
 ### 關鍵資料結構
 - `rcColData`：`{ outer:[], hollow:[], rebars:[{x,y,no,area}], pcX, pcY, alpha }`
@@ -85,3 +85,4 @@ A.斷面幾何 → B.鋼筋配置 → C.斷面預覽 → D.材料參數 → E.�
 - `bb8f5a7` 新增 2D PM 曲線、α 柱、ρg 輸入、CSV 匯出/匯入含路徑記憶
 - `7aba69d` RC梁雙筋梁設計、單位修正，移除梁分析/混凝土用量區段
 - `7558bfe` RC柱改進：ρg修正、平衡點cb計算、SVG鋼筋按面積繪製、CSV匯出警告
+- `c99190c` CSV匯出增加[BALANCE]平衡點資料（各角度cb/Pn_b/Mn_b/φ值）
