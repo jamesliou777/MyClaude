@@ -2985,6 +2985,19 @@
                 });
             }
 
+            // [BALANCE] balanced point data per angle
+            if (window.lastPMSurface) {
+                csv += '\n[BALANCE]\n';
+                csv += 'angle,cb,Pn_b_tf,Mn_b_tfm,phiPn_b_tf,phiMn_b_tfm,phi,epsT\n';
+                window.lastPMSurface.forEach(slice => {
+                    if (slice.balanceIdx != null && slice.balanceIdx >= 0 && slice.balanceIdx < slice.curve.length) {
+                        const bp = slice.curve[slice.balanceIdx];
+                        const f = v => v.toFixed(4);
+                        csv += `${slice.angle},${f(slice.cb)},${f(bp.Pn_tf)},${f(bp.Mn_tfm)},${f(bp.phiPn_tf)},${f(bp.phiMn_tfm)},${bp.phi},${bp.epsT}\n`;
+                    }
+                });
+            }
+
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 
             if (window.showSaveFilePicker) {
@@ -3344,7 +3357,7 @@
             for (let deg = 0; deg <= 360; deg += 15) {
                 const rad = deg * Math.PI / 180;
                 const data = generatePMCurve(outer, hollow, rebars, fc, fy, Es, pcX, pcY, rad);
-                surface.push({ angle: deg, curve: data.curve });
+                surface.push({ angle: deg, curve: data.curve, balanceIdx: data.balanceIdx, cb: data.cb });
             }
             return surface;
         }
