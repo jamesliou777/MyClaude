@@ -573,15 +573,15 @@
 
     <div class="container">
         <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="column">柱載重</button>
-            <button class="tab-btn" data-tab="rebar">鋼筋計算</button>
+            <button class="tab-btn active" data-tab="rccolumn">RC 柱交互作用曲線</button>
             <button class="tab-btn" data-tab="rcbeam">RC梁設計</button>
-            <button class="tab-btn" data-tab="rccolumn">RC 柱 P-M Curve</button>
+            <button class="tab-btn" data-tab="column">柱尺寸估算</button>
+            <button class="tab-btn" data-tab="rebar">鋼筋計算</button>
             <button class="tab-btn" data-tab="unit">單位換算</button>
         </nav>
 
         <!-- ==================== 柱載重 ==================== -->
-        <div class="tab-content active" id="tab-column">
+        <div class="tab-content" id="tab-column">
             <div class="card">
                 <h2>柱軸壓載重分析</h2>
                 <p class="subtitle">Euler 挫屈載重 & 容許軸壓力計算</p>
@@ -776,7 +776,7 @@
         </div>
 
         <!-- ==================== RC柱設計 ==================== -->
-        <div class="tab-content" id="tab-rccolumn">
+        <div class="tab-content active" id="tab-rccolumn">
             <div class="card">
                 <h2>RC柱設計 (P-Mx-My 交互作用)</h2>
                 <p class="subtitle">任意形狀斷面 - 雙向軸力與彎矩交互作用分析</p>
@@ -784,6 +784,9 @@
                 <!-- A. 斷面幾何 -->
                 <div class="section-block">
                     <h3>A. 斷面幾何</h3>
+                    <div style="margin-bottom:0.5rem;">
+                        <button class="btn" style="background:#2563eb;" onclick="importRCColumnCSV()">匯入 CSV</button>
+                    </div>
                     <div class="inline-controls">
                         <label style="font-size:0.85rem;font-weight:600;">預設形狀：</label>
                         <select id="rcc-preset" onchange="onPresetChange(this.value)"
@@ -975,9 +978,8 @@
                 </div>
 
                 <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                    <button class="btn" onclick="calcRCColumn()">設計計算</button>
+                    <button class="btn" onclick="calcRCColumn()">計算交互作用曲線</button>
                     <button class="btn" style="background:#16a34a;" onclick="exportRCColumnCSV()">匯出 CSV</button>
-                    <button class="btn" style="background:#2563eb;" onclick="importRCColumnCSV()">匯入 CSV</button>
                 </div>
                 <div class="result-box" id="result-rccolumn">
                     <h3>設計結果</h3>
@@ -2220,7 +2222,24 @@
                 phi = 0.65 + 0.25 * (epsT - epsY) / (0.005 - epsY);
             }
 
-            return { Pn, Mnx: Mn_x, Mny: Mn_y, Mn: Math.abs(Mn_proj), phi, epsT };
+            // Cs/Ts = sum of compression/tension steel forces
+            let Cs = 0, Ts = 0;
+            rebars.forEach(rb => {
+                const asi = rb.area;
+                const di_proj = rb.x * cosA + rb.y * sinA;
+                const di_from_top = extremeCompDist - di_proj;
+                const epsi = ecu * (c - di_from_top) / c;
+                let sigma = Es * epsi;
+                if (sigma > fy) sigma = fy;
+                if (sigma < -fy) sigma = -fy;
+                let sigmaNet = sigma;
+                if (di_from_top <= a && di_from_top >= 0) sigmaNet = sigma - 0.85 * fc;
+                const fi = sigmaNet * asi;
+                if (fi < 0) Ts += fi;
+                else Cs += fi;
+            });
+
+            return { Pn, Mnx: Mn_x, Mny: Mn_y, Mn: Math.abs(Mn_proj), phi, epsT, Cc, Cs, Ts };
         }
 
         function generatePMCurve(outerPoly, hollowPoly, rebars, fc, fy, Es, pcX, pcY, alphaRad) {
@@ -2298,6 +2317,9 @@
                     phiPn: pt.phi * pt.Pn,
                     phiMn: pt.phi * pt.Mn,
                     phiMnx: pt.phi * pt.Mnx,
+                    Cc: pt.Cc,
+                    Cs: pt.Cs,
+                    Ts: pt.Ts,
                     phiMny: pt.phi * pt.Mny,
                     epsT: pt.epsT
                 });
@@ -2338,7 +2360,10 @@
                 Mny_tfm: pt.Mny / 100000, // Nominal Mny in tf·m
                 phi: pt.phi,
                 epsT: pt.epsT,
-                c: pt.c
+                c: pt.c,
+                Cc_tf: pt.Cc / 1000,
+                Cs_tf: pt.Cs / 1000,
+                Ts_tf: pt.Ts / 1000
             }));
 
             return {
@@ -3143,7 +3168,7 @@
             drawRCColPreview();
             updateLoadAlphas();
 
-            alert('匯入完成！請按「設計計算」重新計算 P-M 曲線。');
+            alert('匯入完成！請按「計算交互作用曲線」重新計算 P-M 曲線。');
         }
 
         function calcRCColumn() {
@@ -3261,11 +3286,14 @@
                 ['β₁', fmt(pmData.beta1, 4)],
                 ['純壓強度 Po', fmt(pmData.Po_tf, 2) + ' tf'],
                 ['φPo,max (0.80φPo)', fmt(pmData.phiPo_max_tf, 2) + ' tf'],
-                ['平衡點 cb', fmt(pmData.cb, 2) + ' cm'],
+                ['平衡點 (α=' + fmt(alpha0, 1) + '°) cb', fmt(pmData.cb, 2) + ' cm'],
                 ['平衡點 Pn_b', fmt(pmData.curve[pmData.balanceIdx].Pn_tf, 2) + ' tf'],
                 ['平衡點 Mn_b', fmt(pmData.curve[pmData.balanceIdx].Mn_tfm, 2) + ' tf·m'],
                 ['平衡點 φPn_b', fmt(pmData.curve[pmData.balanceIdx].phiPn_tf, 2) + ' tf'],
                 ['平衡點 φMn_b', fmt(pmData.curve[pmData.balanceIdx].phiMn_tfm, 2) + ' tf·m'],
+                ['平衡點 Cc', fmt(pmData.curve[pmData.balanceIdx].Cc_tf, 2) + ' tf'],
+                ['平衡點 Cs', fmt(pmData.curve[pmData.balanceIdx].Cs_tf, 2) + ' tf'],
+                ['平衡點 Ts', fmt(pmData.curve[pmData.balanceIdx].Ts_tf, 2) + ' tf'],
                 ['純彎 φMo', fmt(pmData.curve[pmData.pureBendIdx].phiMn_tfm, 2) + ' tf·m'],
                 ['───', '── 載重組合 ──'],
             ];
