@@ -1,0 +1,6 @@
+# .NET build output
+WpfApp/bin/
+WpfApp/obj/
+
+# VS Code
+.vscode/

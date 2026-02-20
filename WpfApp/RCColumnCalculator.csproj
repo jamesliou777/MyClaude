@@ -8,7 +8,6 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>RCColumnCalculator</AssemblyName>
     <RootNamespace>RCColumnCalculator</RootNamespace>
-    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
