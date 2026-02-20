@@ -3073,6 +3073,99 @@
         window._processImportedCSV = function(text) {
             _parseAndApplyCSV(text);
         };
+
+        // ── HTTP API 計算函式（供 VBA / 外部程式呼叫）───────────────────
+        // 輸入：JSON 字串，含 fc, fy, Es, outer, hollow, rebars, loads
+        // 輸出：JSON 字串，含 section, balancePoints, loadResults
+        window._apiCalc = function(inputJson) {
+            try {
+                const inp = JSON.parse(inputJson);
+                const fc  = inp.fc  || 280;
+                const fy  = inp.fy  || 4200;
+                const Es  = inp.Es  || 2040000;
+                const outer  = (inp.outer  || []).map(p => ({ x: p[0], y: p[1] }));
+                const hollow = (inp.hollow || []).map(p => ({ x: p[0], y: p[1] }));
+                const rebars = (inp.rebars || []).map(r => ({ x: r.x, y: r.y, area: r.area, no: r.no || 0 }));
+                const loads  = inp.loads || [];
+
+                if (outer.length < 3) return JSON.stringify({ ok: false, error: '外輪廓頂點不足（至少3點）' });
+
+                // 計算塑性中心
+                const outerP  = polyProps(outer);
+                const hollowP = hollow.length >= 3 ? polyProps(hollow) : { area: 0, cx: outerP.cx, cy: outerP.cy };
+                const Anet = outerP.area - hollowP.area;
+                let totalAs = 0;
+                rebars.forEach(rb => totalAs += rb.area);
+                const Ac = Anet - totalAs;
+                const netCx = Anet > 0 ? (outerP.area * outerP.cx - hollowP.area * hollowP.cx) / Anet : outerP.cx;
+                const netCy = Anet > 0 ? (outerP.area * outerP.cy - hollowP.area * hollowP.cy) / Anet : outerP.cy;
+                let rebarXSum = 0, rebarYSum = 0;
+                rebars.forEach(rb => { rebarXSum += rb.x * rb.area; rebarYSum += rb.y * rb.area; });
+                const Fc_pc  = 0.85 * fc * Ac;
+                const Fs_pc  = fy * totalAs;
+                const pcTot  = Fc_pc + Fs_pc;
+                const pcX = pcTot > 0 ? (Fc_pc * netCx + fy * rebarXSum) / pcTot : outerP.cx;
+                const pcY = pcTot > 0 ? (Fc_pc * netCy + fy * rebarYSum) / pcTot : outerP.cy;
+
+                // 產生 3D 曲面（所有角度）
+                const surface = generate3DSurface(outer, hollow, rebars, fc, fy, Es, pcX, pcY);
+
+                // 各角度平衡點
+                const balancePoints = surface.map(s => {
+                    const bp = s.curve[s.balanceIdx];
+                    return {
+                        angle:    s.angle,
+                        cb:       parseFloat(s.cb.toFixed(4)),
+                        Pn_b:     parseFloat(bp.Pn_tf.toFixed(3)),
+                        Mn_b:     parseFloat(bp.Mn_tfm.toFixed(3)),
+                        phiPn_b:  parseFloat(bp.phiPn_tf.toFixed(3)),
+                        phiMn_b:  parseFloat(bp.phiMn_tfm.toFixed(3)),
+                        phi:      bp.phi,
+                        epsT:     parseFloat(bp.epsT.toFixed(6))
+                    };
+                });
+
+                // 載重組合安全檢核
+                const beta1 = fc <= 280 ? 0.85 : (fc >= 560 ? 0.65 : 0.85 - 0.05 * (fc - 280) / 70);
+                const Po = 0.85 * fc * Ac + fy * totalAs;
+                const loadResults = loads.map((lc, i) => {
+                    const alpha = Math.atan2(-lc.Mux, lc.Muy) * 180 / Math.PI;
+                    const Mu    = Math.sqrt(lc.Mux * lc.Mux + lc.Muy * lc.Muy);
+                    const interpCurve = interpolateSurfaceAtAngle(surface, alpha);
+                    const safe  = isPointInsidePMCurve(interpCurve, lc.Pu, Mu);
+                    return {
+                        idx:      i + 1,
+                        Pu_tf:    lc.Pu,
+                        Mux_tfm:  lc.Mux,
+                        Muy_tfm:  lc.Muy,
+                        Mu_tfm:   parseFloat(Mu.toFixed(3)),
+                        alpha_deg: parseFloat(alpha.toFixed(2)),
+                        safe:     safe
+                    };
+                });
+
+                return JSON.stringify({
+                    ok: true,
+                    section: {
+                        Ag:          parseFloat(outerP.area.toFixed(2)),
+                        Ah:          parseFloat(hollowP.area.toFixed(2)),
+                        Anet:        parseFloat(Anet.toFixed(2)),
+                        Ast:         parseFloat(totalAs.toFixed(2)),
+                        Ac:          parseFloat(Ac.toFixed(2)),
+                        rhoG_pct:    parseFloat((totalAs / Anet * 100).toFixed(3)),
+                        pcX:         parseFloat(pcX.toFixed(3)),
+                        pcY:         parseFloat(pcY.toFixed(3)),
+                        beta1:       beta1,
+                        Po_tf:       parseFloat((Po / 1000).toFixed(2)),
+                        phiPo_max_tf:parseFloat((0.80 * 0.65 * Po / 1000).toFixed(2))
+                    },
+                    balancePoints,
+                    loadResults
+                });
+            } catch (e) {
+                return JSON.stringify({ ok: false, error: e.message });
+            }
+        };
         // ─────────────────────────────────────────────────────────────
 
         async function importRCColumnCSV() {
