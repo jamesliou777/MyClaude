@@ -1,24 +1,24 @@
 Attribute VB_Name = "RCColumnAPI"
 ' =============================================================
-' RC Column P-M Curve Calculator — Excel VBA Integration Module
-' 用途：透過 HTTP API 呼叫 WPF 桌面應用程式計算 RC 柱交互作用曲線
-' API 端點：http://localhost:5050/api/pmcurve
+' RC Column P-M Curve Calculator - Excel VBA Integration Module
+' Calls WPF desktop app via HTTP API to compute P-M interaction curve
+' API endpoint: http://localhost:5050/api/pmcurve
 ' =============================================================
 Option Explicit
 
-' ─────────────────────────────────────────────────────────────
-' 主要巨集：讀取 Excel 輸入，呼叫 API，寫入計算結果
-' ─────────────────────────────────────────────────────────────
+' ---------------------------------------------------------------
+' Main macro: read Excel input, call API, write results
+' ---------------------------------------------------------------
 Sub CalcPMCurve()
     Dim ws As Worksheet
     Set ws = ActiveSheet
 
-    ' --- 讀取基本參數 ---
-    Dim fc   As Double  ' f'c (kgf/cm²)
-    Dim fy   As Double  ' fy  (kgf/cm²)
-    Dim Es   As Double  ' Es  (kgf/cm²)
-    Dim cc   As Double  ' 保護層厚度 (cm)
-    Dim stirDia As Double ' 箍筋直徑 (cm)
+    ' --- Basic parameters ---
+    Dim fc      As Double   ' f'c (kgf/cm2)
+    Dim fy      As Double   ' fy  (kgf/cm2)
+    Dim Es      As Double   ' Es  (kgf/cm2)
+    Dim cc      As Double   ' concrete cover (cm)
+    Dim stirDia As Double   ' stirrup diameter (cm)
 
     fc      = ws.Range("B2").Value
     fy      = ws.Range("B3").Value
@@ -26,23 +26,23 @@ Sub CalcPMCurve()
     cc      = ws.Range("B5").Value
     stirDia = ws.Range("B6").Value
 
-    ' --- 讀取外輪廓頂點 (XY 表格，起始列 B9) ---
+    ' --- Outer polygon vertices (XY table starting at row 9, col B) ---
     Dim outerPts As String
     outerPts = ReadXYTable(ws, 9, "B")
 
-    ' --- 讀取空心區域 (XY 表格，起始列 B20，若無則空白) ---
+    ' --- Hollow polygon vertices (XY table starting at row 20, col B; leave empty if none) ---
     Dim hollowPts As String
     hollowPts = ReadXYTable(ws, 20, "B")
 
-    ' --- 讀取鋼筋配置 (起始列 B32：no, x, y) ---
+    ' --- Rebar layout (starting at row 32, col B: no, x, y) ---
     Dim rebarArr As String
     rebarArr = ReadRebarTable(ws, 32, "B")
 
-    ' --- 讀取載重組合 (起始列 B45：Pu, Mux, Muy) ---
+    ' --- Load combinations (starting at row 45, col B: Pu, Mux, Muy) ---
     Dim loadArr As String
     loadArr = ReadLoadTable(ws, 45, "B")
 
-    ' --- 組合 JSON 輸入 ---
+    ' --- Build JSON input ---
     Dim inputJson As String
     inputJson = "{"
     inputJson = inputJson & """fc"":" & fc & ","
@@ -58,48 +58,47 @@ Sub CalcPMCurve()
     inputJson = inputJson & """loads"":[" & loadArr & "]"
     inputJson = inputJson & "}"
 
-    ' --- 呼叫 API ---
+    ' --- Call API ---
     Dim response As String
     response = PostRequest("http://localhost:5050/api/pmcurve", inputJson)
 
     If Len(response) = 0 Then
-        MsgBox "API 未回應，請確認 WPF 應用程式已啟動。", vbExclamation
+        MsgBox "API not responding. Please make sure the WPF application is running.", vbExclamation
         Exit Sub
     End If
 
-    ' --- 解析回應並寫入結果 ---
+    ' --- Parse response and write results ---
     Call WriteResults(ws, response)
 
-    MsgBox "計算完成！", vbInformation
+    MsgBox "Calculation complete!", vbInformation
 End Sub
 
-' ─────────────────────────────────────────────────────────────
-' 測試：連線確認
-' ─────────────────────────────────────────────────────────────
+' ---------------------------------------------------------------
+' Test: ping API to verify connection
+' ---------------------------------------------------------------
 Sub TestConnection()
     Dim result As String
     result = PingAPI()
     If Len(result) > 0 Then
-        MsgBox "API 連線成功！" & vbCrLf & result, vbInformation
+        MsgBox "API connection OK!" & vbCrLf & result, vbInformation
     Else
-        MsgBox "API 連線失敗，請確認 WPF 應用程式已啟動於 port 5050。", vbExclamation
+        MsgBox "API connection failed. Please make sure the WPF app is running on port 5050.", vbExclamation
     End If
 End Sub
 
-' ─────────────────────────────────────────────────────────────
-' 測試：使用範例資料（50×60 矩形空心柱，14 根鋼筋）
-' ─────────────────────────────────────────────────────────────
+' ---------------------------------------------------------------
+' Test: run with hardcoded sample data (50x60 hollow column, 8 rebars)
+' ---------------------------------------------------------------
 Sub TestWithSampleData()
-    ' 外輪廓：50×60 矩形（cm）
+    ' Outer boundary: 50x60 rectangle (cm)
     Dim outer As String
     outer = "[0,0],[50,0],[50,60],[0,60]"
 
-    ' 空心：20×30 矩形，置中
+    ' Hollow: 20x30 rectangle, centered
     Dim hollow As String
     hollow = "[15,15],[35,15],[35,45],[15,45]"
 
-    ' 鋼筋：#8 (no=8, area=5.07 cm²)，沿外緣均布
-    ' 四角 + 各邊中點，保護層 + 箍筋後鋼筋中心約 5 cm
+    ' Rebars: #8 (no=8, area=5.07 cm2), along perimeter, cover ~5 cm
     Dim rebars As String
     rebars = ""
     rebars = rebars & "{""no"":8,""x"":5,""y"":5},"
@@ -111,14 +110,14 @@ Sub TestWithSampleData()
     rebars = rebars & "{""no"":8,""x"":5,""y"":55},"
     rebars = rebars & "{""no"":8,""x"":5,""y"":30}"
 
-    ' 載重組合
+    ' Load combinations
     Dim loads As String
     loads = ""
     loads = loads & "{""Pu"":300,""Mux"":50,""Muy"":80},"
     loads = loads & "{""Pu"":150,""Mux"":30,""Muy"":40},"
     loads = loads & "{""Pu"":500,""Mux"":10,""Muy"":10}"
 
-    ' 組合 JSON
+    ' Build JSON
     Dim inputJson As String
     inputJson = "{"
     inputJson = inputJson & """fc"":280,"
@@ -132,25 +131,24 @@ Sub TestWithSampleData()
     inputJson = inputJson & """loads"":[" & loads & "]"
     inputJson = inputJson & "}"
 
-    ' 呼叫 API
+    ' Call API
     Dim response As String
     response = PostRequest("http://localhost:5050/api/pmcurve", inputJson)
 
     If Len(response) = 0 Then
-        MsgBox "API 未回應，請確認 WPF 應用程式已啟動。", vbExclamation
+        MsgBox "API not responding. Please make sure the WPF application is running.", vbExclamation
         Exit Sub
     End If
 
-    ' 輸出至 ActiveSheet
     Call WriteResults(ActiveSheet, response)
-    MsgBox "範例計算完成！", vbInformation
+    MsgBox "Sample calculation complete!", vbInformation
 End Sub
 
 ' =============================================================
-' HTTP 輔助函式
+' HTTP helper functions
 ' =============================================================
 
-' Ping /api/ping，回傳回應字串
+' Ping /api/ping and return response text
 Function PingAPI() As String
     On Error Resume Next
     Dim http As Object
@@ -165,7 +163,7 @@ Function PingAPI() As String
     On Error GoTo 0
 End Function
 
-' POST JSON 至指定 URL，回傳回應字串
+' POST JSON to url, return response text
 Function PostRequest(url As String, jsonBody As String) As String
     On Error Resume Next
     Dim http As Object
@@ -182,11 +180,11 @@ Function PostRequest(url As String, jsonBody As String) As String
 End Function
 
 ' =============================================================
-' 讀取 Excel 表格輔助函式
+' Excel table reader helpers
 ' =============================================================
 
-' 讀取 XY 頂點表格，格式：startCol=X, startCol+1=Y，遇空白停止
-' 回傳 "[x1,y1],[x2,y2],..." 字串
+' Read XY vertex table: startCol=X, startCol+1=Y, stop at blank
+' Returns "[x1,y1],[x2,y2],..." string
 Function ReadXYTable(ws As Worksheet, startRow As Long, startCol As String) As String
     Dim result As String
     Dim r As Long
@@ -207,8 +205,8 @@ Function ReadXYTable(ws As Worksheet, startRow As Long, startCol As String) As S
     ReadXYTable = result
 End Function
 
-' 讀取鋼筋表格，格式：no, x, y（遇空白停止）
-' 回傳 JSON 物件陣列字串
+' Read rebar table: no, x, y per row, stop at blank
+' Returns JSON object array string
 Function ReadRebarTable(ws As Worksheet, startRow As Long, startCol As String) As String
     Dim result As String
     Dim r As Long
@@ -230,8 +228,8 @@ Function ReadRebarTable(ws As Worksheet, startRow As Long, startCol As String) A
     ReadRebarTable = result
 End Function
 
-' 讀取載重表格，格式：Pu, Mux, Muy（遇空白停止）
-' 回傳 JSON 物件陣列字串
+' Read load table: Pu, Mux, Muy per row, stop at blank
+' Returns JSON object array string
 Function ReadLoadTable(ws As Worksheet, startRow As Long, startCol As String) As String
     Dim result As String
     Dim r As Long
@@ -253,65 +251,64 @@ Function ReadLoadTable(ws As Worksheet, startRow As Long, startCol As String) As
 End Function
 
 ' =============================================================
-' 結果寫入 Excel
+' Write results to Excel (starting at column E)
 ' =============================================================
 Sub WriteResults(ws As Worksheet, jsonResp As String)
-    ' 找到輸出起始欄（D 欄 = 4）
-    Const OUT_COL As Integer = 5   ' E 欄起
+    Const OUT_COL As Integer = 5   ' Column E
 
-    ' ── 標題 ──
+    ' Title
     With ws.Cells(1, OUT_COL)
-        .Value = "RC 柱 P-M 計算結果"
+        .Value = "RC Column P-M Curve Results"
         .Font.Bold = True
         .Font.Size = 12
     End With
 
-    ' ── 斷面基本資訊 ──
+    ' Section info
     Dim r As Long
     r = 2
-    ws.Cells(r, OUT_COL).Value = "斷面資訊"
+    ws.Cells(r, OUT_COL).Value = "Section Properties"
     ws.Cells(r, OUT_COL).Font.Bold = True
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "Ag (cm²)"
+    ws.Cells(r, OUT_COL).Value = "Ag (cm2)"
     ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(jsonResp, "Ag")
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "Ah (cm²)"
+    ws.Cells(r, OUT_COL).Value = "Ah (cm2)"
     ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(jsonResp, "Ah")
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "Ast (cm²)"
+    ws.Cells(r, OUT_COL).Value = "Ast (cm2)"
     ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(jsonResp, "Ast")
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "ρg (%)"
+    ws.Cells(r, OUT_COL).Value = "rhoG (%)"
     ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(jsonResp, "rhoG")
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "塑性中心 pcX (cm)"
+    ws.Cells(r, OUT_COL).Value = "Plastic Centroid X (cm)"
     ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(jsonResp, "pcX")
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "塑性中心 pcY (cm)"
+    ws.Cells(r, OUT_COL).Value = "Plastic Centroid Y (cm)"
     ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(jsonResp, "pcY")
     r = r + 1
 
     r = r + 1
 
-    ' ── 載重檢核結果 ──
-    ws.Cells(r, OUT_COL).Value = "載重組合檢核"
+    ' Load check results
+    ws.Cells(r, OUT_COL).Value = "Load Combination Check"
     ws.Cells(r, OUT_COL).Font.Bold = True
     r = r + 1
 
-    ' 標題列
-    ws.Cells(r, OUT_COL).Value = "Pu (tf)"
-    ws.Cells(r, OUT_COL + 1).Value = "Mux (tf·m)"
-    ws.Cells(r, OUT_COL + 2).Value = "Muy (tf·m)"
-    ws.Cells(r, OUT_COL + 3).Value = "φPn (tf)"
-    ws.Cells(r, OUT_COL + 4).Value = "φMn (tf·m)"
+    ' Header row
+    ws.Cells(r, OUT_COL).Value     = "Pu (tf)"
+    ws.Cells(r, OUT_COL + 1).Value = "Mux (tf.m)"
+    ws.Cells(r, OUT_COL + 2).Value = "Muy (tf.m)"
+    ws.Cells(r, OUT_COL + 3).Value = "phiPn (tf)"
+    ws.Cells(r, OUT_COL + 4).Value = "phiMn (tf.m)"
     ws.Cells(r, OUT_COL + 5).Value = "Ratio"
-    ws.Cells(r, OUT_COL + 6).Value = "狀態"
+    ws.Cells(r, OUT_COL + 6).Value = "Status"
 
     Dim hdr As Integer
     For hdr = 0 To 6
@@ -321,7 +318,7 @@ Sub WriteResults(ws As Worksheet, jsonResp As String)
     Next hdr
     r = r + 1
 
-    ' 解析 loadResults 陣列
+    ' Parse loadResults array
     Dim loadsJson As String
     loadsJson = ExtractJsonArray(jsonResp, "loadResults")
 
@@ -335,20 +332,15 @@ Sub WriteResults(ws As Worksheet, jsonResp As String)
         Dim item As String
         item = loadItems(i)
 
-        Dim pu_v   As Double: pu_v   = ExtractJsonNum(item, "Pu")
-        Dim mux_v  As Double: mux_v  = ExtractJsonNum(item, "Mux")
-        Dim muy_v  As Double: muy_v  = ExtractJsonNum(item, "Muy")
-        Dim phin_v As Double: phin_v = ExtractJsonNum(item, "phiPn")
-        Dim phim_v As Double: phim_v = ExtractJsonNum(item, "phiMn")
-        Dim ratio  As Double: ratio  = ExtractJsonNum(item, "ratio")
-        Dim safe   As String: safe   = ExtractJsonStr(item, "safe")
+        ws.Cells(r, OUT_COL).Value     = ExtractJsonNum(item, "Pu")
+        ws.Cells(r, OUT_COL + 1).Value = ExtractJsonNum(item, "Mux")
+        ws.Cells(r, OUT_COL + 2).Value = ExtractJsonNum(item, "Muy")
+        ws.Cells(r, OUT_COL + 3).Value = ExtractJsonNum(item, "phiPn")
+        ws.Cells(r, OUT_COL + 4).Value = ExtractJsonNum(item, "phiMn")
+        ws.Cells(r, OUT_COL + 5).Value = ExtractJsonNum(item, "ratio")
 
-        ws.Cells(r, OUT_COL).Value     = pu_v
-        ws.Cells(r, OUT_COL + 1).Value = mux_v
-        ws.Cells(r, OUT_COL + 2).Value = muy_v
-        ws.Cells(r, OUT_COL + 3).Value = phin_v
-        ws.Cells(r, OUT_COL + 4).Value = phim_v
-        ws.Cells(r, OUT_COL + 5).Value = ratio
+        Dim safe As String
+        safe = ExtractJsonStr(item, "safe")
 
         If safe = "true" Then
             ws.Cells(r, OUT_COL + 6).Value = "OK"
@@ -366,17 +358,17 @@ NextLoad:
 
     r = r + 1
 
-    ' ── 平衡點資料 ──
-    ws.Cells(r, OUT_COL).Value = "平衡點 (各方位角)"
+    ' Balance points
+    ws.Cells(r, OUT_COL).Value = "Balance Points (per angle)"
     ws.Cells(r, OUT_COL).Font.Bold = True
     r = r + 1
 
-    ws.Cells(r, OUT_COL).Value = "α (°)"
+    ws.Cells(r, OUT_COL).Value     = "alpha (deg)"
     ws.Cells(r, OUT_COL + 1).Value = "cb (cm)"
     ws.Cells(r, OUT_COL + 2).Value = "Pn_b (tf)"
-    ws.Cells(r, OUT_COL + 3).Value = "Mn_b (tf·m)"
-    ws.Cells(r, OUT_COL + 4).Value = "φPn_b (tf)"
-    ws.Cells(r, OUT_COL + 5).Value = "φMn_b (tf·m)"
+    ws.Cells(r, OUT_COL + 3).Value = "Mn_b (tf.m)"
+    ws.Cells(r, OUT_COL + 4).Value = "phiPn_b (tf)"
+    ws.Cells(r, OUT_COL + 5).Value = "phiMn_b (tf.m)"
 
     For hdr = 0 To 5
         ws.Cells(r, OUT_COL + hdr).Font.Bold = True
@@ -408,100 +400,74 @@ NextLoad:
 NextBal:
     Next i
 
-    ' 自動調整欄寬
-    ws.Columns(OUT_COL).AutoFit
-    ws.Columns(OUT_COL + 1).AutoFit
-    ws.Columns(OUT_COL + 2).AutoFit
-    ws.Columns(OUT_COL + 3).AutoFit
-    ws.Columns(OUT_COL + 4).AutoFit
-    ws.Columns(OUT_COL + 5).AutoFit
-    ws.Columns(OUT_COL + 6).AutoFit
+    ' Auto-fit columns
+    Dim col As Integer
+    For col = OUT_COL To OUT_COL + 6
+        ws.Columns(col).AutoFit
+    Next col
 End Sub
 
 ' =============================================================
-' JSON 解析輔助函式（不依賴外部程式庫）
+' JSON parsing helpers (no external library needed)
 ' =============================================================
 
-' 從 JSON 字串中提取字串值 "key":"value"
+' Extract string value:  "key":"value"
 Function ExtractJsonStr(json As String, key As String) As String
     Dim pattern As String
     pattern = """" & key & """:"""
     Dim pos As Long
     pos = InStr(json, pattern)
-    If pos = 0 Then
-        ExtractJsonStr = ""
-        Exit Function
-    End If
+    If pos = 0 Then ExtractJsonStr = "": Exit Function
     pos = pos + Len(pattern)
     Dim endPos As Long
     endPos = InStr(pos, json, """")
-    If endPos = 0 Then
-        ExtractJsonStr = ""
-        Exit Function
-    End If
+    If endPos = 0 Then ExtractJsonStr = "": Exit Function
     ExtractJsonStr = Mid(json, pos, endPos - pos)
 End Function
 
-' 從 JSON 字串中提取數值 "key":number
+' Extract numeric value:  "key":number
 Function ExtractJsonNum(json As String, key As String) As Double
     Dim pattern As String
     pattern = """" & key & """:"
     Dim pos As Long
     pos = InStr(json, pattern)
-    If pos = 0 Then
-        ExtractJsonNum = 0
-        Exit Function
-    End If
+    If pos = 0 Then ExtractJsonNum = 0: Exit Function
     pos = pos + Len(pattern)
-    ' 跳過空白
     Do While Mid(json, pos, 1) = " "
         pos = pos + 1
     Loop
-    ' 收集數字字元（含負號、小數點、指數）
     Dim numStr As String
     numStr = ""
     Dim ch As String
     Do
         ch = Mid(json, pos, 1)
-        If ch = "-" Or ch = "+" Or ch = "." Or ch = "e" Or ch = "E" Or _
-           (ch >= "0" And ch <= "9") Then
+        If ch = "-" Or ch = "+" Or ch = "." Or ch = "e" Or ch = "E" _
+           Or (ch >= "0" And ch <= "9") Then
             numStr = numStr & ch
             pos = pos + 1
         Else
             Exit Do
         End If
     Loop
-    If Len(numStr) > 0 Then
-        ExtractJsonNum = CDbl(numStr)
-    Else
-        ExtractJsonNum = 0
-    End If
+    If Len(numStr) > 0 Then ExtractJsonNum = CDbl(numStr) Else ExtractJsonNum = 0
 End Function
 
-' 提取 JSON 陣列內容 "key":[...]
+' Extract array content:  "key":[...]
 Function ExtractJsonArray(json As String, key As String) As String
     Dim pattern As String
     pattern = """" & key & """["
     Dim pos As Long
     pos = InStr(json, pattern)
     If pos = 0 Then
-        ' 嘗試帶空格的格式
         pattern = """" & key & """: ["
         pos = InStr(json, pattern)
     End If
-    If pos = 0 Then
-        ExtractJsonArray = ""
-        Exit Function
-    End If
-    ' 找到開頭的 [
+    If pos = 0 Then ExtractJsonArray = "": Exit Function
+
     Dim startPos As Long
     startPos = InStr(pos + Len(pattern) - 1, json, "[")
-    If startPos = 0 Then
-        ExtractJsonArray = ""
-        Exit Function
-    End If
+    If startPos = 0 Then ExtractJsonArray = "": Exit Function
 
-    ' 找對應的 ]
     Dim depth As Integer
     depth = 0
     Dim p As Long
@@ -521,8 +487,7 @@ Function ExtractJsonArray(json As String, key As String) As String
     ExtractJsonArray = ""
 End Function
 
-' 將 JSON 物件陣列字串拆分成個別物件
-' 輸入："{...},{...},..." 回傳物件字串陣列
+' Split JSON object array string "{...},{...},..." into individual object strings
 Function SplitJsonObjects(arrContent As String) As String()
     Dim result() As String
     Dim count As Integer
